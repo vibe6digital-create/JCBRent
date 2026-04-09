@@ -1,0 +1,46 @@
+# ─── Environment / Secrets (NEVER commit) ────────────────────────────────────
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+service-account*.json
+serviceAccount*.json
+
+# ─── Node / Web ──────────────────────────────────────────────────────────────
+node_modules/
+dist/
+build/
+.cache/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# ─── Flutter / Dart ──────────────────────────────────────────────────────────
+**/build/
+**/.dart_tool/
+**/.flutter-plugins
+**/.flutter-plugins-dependencies
+**/.packages
+**/pubspec.lock
+**/*.iml
+**/.idea/
+**/*.g.dart
+**/*.freezed.dart
+
+# ─── Nested duplicate Flutter projects (created by accident) ─────────────────
+customer_app/customer_app/
+customer_app_ios/
+customer_app_v2/
+vendor_app_ios/
+
+# ─── OS / Editor ─────────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+*.swp
+.vscode/
+.idea/
+
+# ─── PDF / binary documents ──────────────────────────────────────────────────
+*.pdf
