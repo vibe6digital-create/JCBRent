@@ -1,8 +1,14 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, Phone, Calendar, MapPin, IndianRupee, Clock, Star, Navigation, Check } from 'lucide-react';
-import { mockCustomerBookings, MACHINE_ICONS } from '../../../data/mockData';
+import { getBookingById, rateBooking } from '../../../services/api';
+import type { Booking } from '../../../types';
 import Badge from '../../../components/common/Badge';
+import toast from 'react-hot-toast';
+
+const MACHINE_ICONS: Record<string, string> = {
+  JCB: '🚜', Excavator: '⛏️', Crane: '🏗️', Bulldozer: '🚧', Roller: '🛞', Pokelane: '🛣️',
+};
 
 const TIMELINE = [
   { key: 'pending', label: 'Booking Requested', icon: '📋' },
@@ -15,16 +21,42 @@ const STATUS_ORDER = ['pending', 'accepted', 'in_progress', 'completed'];
 export default function BookingDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const booking = mockCustomerBookings.find(b => b.id === id);
+
+  const [booking, setBooking] = useState<Booking | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
   const [rating, setRating] = useState(0);
   const [review, setReview] = useState('');
   const [rated, setRated] = useState(false);
+  const [submittingRating, setSubmittingRating] = useState(false);
 
-  if (!booking) return <div style={{ padding: 40, textAlign: 'center', color: '#9CA3AF' }}>Booking not found</div>;
+  useEffect(() => {
+    if (!id) return;
+    setLoading(true);
+    getBookingById(id)
+      .then((res: any) => setBooking(res.booking || res))
+      .catch((err: any) => setError(err.message || 'Booking not found'))
+      .finally(() => setLoading(false));
+  }, [id]);
+
+  if (loading) return <div style={{ textAlign: 'center', padding: 40 }}>Loading...</div>;
+  if (error || !booking) return <div style={{ padding: 40, textAlign: 'center', color: '#E53935' }}>{error || 'Booking not found'}</div>;
 
   const currentIdx = STATUS_ORDER.indexOf(booking.status === 'rejected' ? 'pending' : booking.status);
 
-  const handleRate = () => { if (rating > 0) setRated(true); };
+  const handleRate = async () => {
+    if (rating === 0 || !id) return;
+    setSubmittingRating(true);
+    try {
+      await rateBooking(id, { rating, review: review || undefined });
+      setRated(true);
+      toast.success('Rating submitted!');
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to submit rating');
+    } finally {
+      setSubmittingRating(false);
+    }
+  };
 
   return (
     <div className="fade-in">
@@ -141,9 +173,9 @@ export default function BookingDetail() {
               </div>
               <textarea value={review} onChange={e => setReview(e.target.value)} placeholder="Share your experience (optional)..." rows={3}
                 style={{ width: '100%', padding: '10px 14px', border: '1.5px solid #E5E7EB', borderRadius: 8, fontSize: 14, color: '#1A1D26', resize: 'none', marginBottom: 12 }} />
-              <button onClick={handleRate} disabled={rating === 0}
+              <button onClick={handleRate} disabled={rating === 0 || submittingRating}
                 style={{ padding: '10px 24px', borderRadius: 8, background: rating > 0 ? '#FF8C00' : '#E5E7EB', color: rating > 0 ? '#fff' : '#9CA3AF', fontWeight: 700, fontSize: 13, border: 'none', cursor: rating > 0 ? 'pointer' : 'not-allowed' }}>
-                Submit Rating
+                {submittingRating ? 'Submitting...' : 'Submit Rating'}
               </button>
             </div>
           )}

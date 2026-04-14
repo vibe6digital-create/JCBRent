@@ -5,7 +5,7 @@ class BookingService {
   final ApiService _api = ApiService();
 
   Future<List<Booking>> getVendorBookings() async {
-    final response = await _api.get('/bookings');
+    final response = await _api.get('/bookings/vendor');
     final List bookings = response['bookings'] ?? response['data'] ?? [];
     return bookings.map((b) => Booking.fromJson(b)).toList();
   }

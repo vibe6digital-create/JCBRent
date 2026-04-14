@@ -10,7 +10,6 @@ plugins {
 android {
     namespace = "com.vibe6.heavyrent.customer"
     compileSdk = flutter.compileSdkVersion
-    ndkVersion = "27.0.12077973"
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_1_8

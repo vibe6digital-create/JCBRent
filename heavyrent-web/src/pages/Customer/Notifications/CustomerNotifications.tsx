@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Bell, Check } from 'lucide-react';
-import { mockCustomerNotifications } from '../../../data/mockData';
+import { getNotifications, markNotificationRead } from '../../../services/api';
 import type { Notification } from '../../../types';
 
 const TYPE_CONFIG: Record<string, { bg: string; color: string; icon: string }> = {
@@ -13,11 +13,32 @@ const TYPE_CONFIG: Record<string, { bg: string; color: string; icon: string }> =
 };
 
 export default function CustomerNotifications() {
-  const [notifications, setNotifications] = useState<Notification[]>(mockCustomerNotifications);
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
 
-  const markAllRead = () => setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
-  const markRead = (id: string) => setNotifications(prev => prev.map(n => n.id === id ? { ...n, isRead: true } : n));
+  useEffect(() => {
+    getNotifications()
+      .then((res: any) => setNotifications(res.notifications || []))
+      .catch((err: any) => setError(err.message || 'Failed to load notifications'))
+      .finally(() => setLoading(false));
+  }, []);
+
+  const markAllRead = () => {
+    const unread = notifications.filter(n => !n.isRead);
+    unread.forEach(n => markNotificationRead(n.id).catch(() => {}));
+    setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
+  };
+
+  const markRead = (id: string) => {
+    markNotificationRead(id).catch(() => {});
+    setNotifications(prev => prev.map(n => n.id === id ? { ...n, isRead: true } : n));
+  };
+
   const unreadCount = notifications.filter(n => !n.isRead).length;
+
+  if (loading) return <div style={{ textAlign: 'center', padding: 40 }}>Loading...</div>;
+  if (error) return <div style={{ textAlign: 'center', padding: 40, color: '#E53935' }}>{error}</div>;
 
   return (
     <div style={{ maxWidth: 680, margin: '0 auto' }} className="fade-in">

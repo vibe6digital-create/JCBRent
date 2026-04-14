@@ -1,9 +1,13 @@
-import { useState, useMemo } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Search, SlidersHorizontal, MapPin, Clock, IndianRupee, ChevronRight, X } from 'lucide-react';
-import { mockMachines, MACHINE_ICONS } from '../../../data/mockData';
-import type { MachineCategory } from '../../../types';
+import { searchMachines } from '../../../services/api';
+import type { Machine, MachineCategory } from '../../../types';
 import Badge from '../../../components/common/Badge';
+
+const MACHINE_ICONS: Record<string, string> = {
+  JCB: '🚜', Excavator: '⛏️', Crane: '🏗️', Bulldozer: '🚧', Roller: '🛞', Pokelane: '🛣️',
+};
 
 const CATEGORIES: MachineCategory[] = ['JCB', 'Excavator', 'Crane', 'Bulldozer', 'Roller', 'Pokelane'];
 
@@ -14,8 +18,23 @@ export default function CustomerSearch() {
   const [category, setCategory] = useState<MachineCategory | 'All'>((params.get('category') as MachineCategory) || 'All');
   const [sort, setSort] = useState<'price_asc' | 'price_desc'>('price_asc');
 
+  const [allMachines, setAllMachines] = useState<Machine[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    setLoading(true);
+    setError('');
+    searchMachines({})
+      .then((res: any) => {
+        setAllMachines((res.machines || []).filter((m: Machine) => m.approvalStatus === 'approved'));
+      })
+      .catch((err: any) => setError(err.message || 'Failed to load machines'))
+      .finally(() => setLoading(false));
+  }, []);
+
   const filtered = useMemo(() => {
-    let list = mockMachines.filter(m => m.approvalStatus === 'approved');
+    let list = [...allMachines];
     if (search) {
       const q = search.toLowerCase();
       list = list.filter(m =>
@@ -28,7 +47,10 @@ export default function CustomerSearch() {
     if (category !== 'All') list = list.filter(m => m.category === category);
     list.sort((a, b) => sort === 'price_asc' ? a.dailyRate - b.dailyRate : b.dailyRate - a.dailyRate);
     return list;
-  }, [search, category, sort]);
+  }, [allMachines, search, category, sort]);
+
+  if (loading) return <div style={{ textAlign: 'center', padding: 40 }}>Loading...</div>;
+  if (error) return <div style={{ textAlign: 'center', padding: 40, color: '#E53935' }}>{error}</div>;
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }} className="fade-in">

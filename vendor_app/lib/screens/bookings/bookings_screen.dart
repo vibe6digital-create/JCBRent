@@ -44,8 +44,12 @@ class _BookingsScreenState extends State<BookingsScreen> with SingleTickerProvid
   }
 
   Future<void> _loadBookings() async {
-    final bookings = await _service.getVendorBookings();
-    if (mounted) setState(() { _allBookings = bookings; _isLoading = false; });
+    try {
+      final bookings = await _service.getVendorBookings();
+      if (mounted) setState(() { _allBookings = bookings; _isLoading = false; });
+    } catch (_) {
+      if (mounted) setState(() => _isLoading = false);
+    }
   }
 
   List<Booking> _pending() => _allBookings.where((b) => b.isPending).toList();

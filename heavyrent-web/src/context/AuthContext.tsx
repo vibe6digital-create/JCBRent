@@ -1,13 +1,6 @@
-import { createContext, useContext, useState, useEffect, useRef, ReactNode } from 'react';
-import { onAuthStateChanged, ConfirmationResult } from 'firebase/auth';
-import {
-  auth,
-  RecaptchaVerifier,
-  signInWithPhoneNumber,
-  PhoneAuthProvider,
-  signInWithCredential,
-} from '../config/firebase';
-import { registerUser, getProfile } from '../services/api';
+import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { onAuthStateChanged } from 'firebase/auth';
+import { auth, signInWithCustomToken } from '../config/firebase';
 import type { AuthUser, UserRole } from '../types';
 
 interface AuthContextType {
@@ -18,14 +11,13 @@ interface AuthContextType {
   pendingPhone: string;
   setRole: (role: UserRole) => void;
   setPendingPhone: (phone: string) => void;
-  sendOTP: (phone: string, recaptchaContainerId: string) => Promise<void>;
-  verifyOTP: (otp: string) => Promise<void>;
-  login: (role: UserRole, phone: string) => void; // kept for compat, use verifyOTP
+  sendOTP: (phone: string) => Promise<void>;
+  verifyOTP: (otp: string) => Promise<AuthUser | null>;
+  login: (role: UserRole, phone: string) => void;
   logout: () => void;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
-
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -34,8 +26,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [pendingRole, setPendingRole] = useState<UserRole | null>(null);
   const [pendingPhone, setPendingPhone] = useState('');
-  const confirmationRef = useRef<ConfirmationResult | null>(null);
-  const recaptchaRef = useRef<RecaptchaVerifier | null>(null);
 
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, async (firebaseUser) => {
@@ -47,20 +37,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           });
           if (res.ok) {
             const data = await res.json();
-            const profile = data.user;
-            setUser(profile);
-            setRoleState(profile.role);
+            setUser(data.user);
+            setRoleState(data.user.role);
           } else {
-            setUser(null);
-            setRoleState(null);
+            setUser(null); setRoleState(null);
           }
         } catch {
-          setUser(null);
-          setRoleState(null);
+          setUser(null); setRoleState(null);
         }
       } else {
-        setUser(null);
-        setRoleState(null);
+        setUser(null); setRoleState(null);
       }
       setLoading(false);
     });
@@ -69,70 +55,68 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const setRole = (r: UserRole) => setPendingRole(r);
 
-  const sendOTP = async (phone: string, recaptchaContainerId: string) => {
-    if (recaptchaRef.current) {
-      recaptchaRef.current.clear();
-      recaptchaRef.current = null;
-    }
-    const verifier = new RecaptchaVerifier(auth, recaptchaContainerId, {
-      size: 'invisible',
-      callback: () => {},
+  const sendOTP = async (phone: string) => {
+    const digits = phone.replace(/\D/g, '');
+    const res = await fetch(`${API_URL}/auth/send-otp`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ phone: digits }),
     });
-    recaptchaRef.current = verifier;
-    const formatted = phone.startsWith('+91') ? phone : `+91${phone.replace(/\D/g, '')}`;
-    const result = await signInWithPhoneNumber(auth, formatted, verifier);
-    confirmationRef.current = result;
-    setPendingPhone(formatted);
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Failed to send OTP');
+    setPendingPhone(digits);
   };
 
-  const verifyOTP = async (otp: string) => {
-    if (!confirmationRef.current) throw new Error('No OTP session. Please request OTP again.');
-    const credential = PhoneAuthProvider.credential(
-      (confirmationRef.current as any).verificationId,
-      otp
-    );
-    const result = await signInWithCredential(auth, credential);
-    const token = await result.user.getIdToken();
-
+  const verifyOTP = async (otp: string): Promise<AuthUser | null> => {
     const selectedRole = pendingRole ?? 'customer';
+    const res = await fetch(`${API_URL}/auth/verify-otp`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ phone: pendingPhone, otp, role: selectedRole }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Invalid OTP');
 
-    // Try register (new user) or fall back to existing profile
-    try {
-      const data = await registerUser({ name: '', role: selectedRole }) as any;
-      setUser(data.user);
-      setRoleState(data.user.role);
-    } catch {
-      const res = await fetch(`${API_URL}/auth/profile`, {
-        headers: { Authorization: `Bearer ${token}` },
+    const credential = await signInWithCustomToken(auth, data.customToken);
+    const idToken = await credential.user.getIdToken();
+
+    let resolvedUser: AuthUser | null = null;
+
+    const profileRes = await fetch(`${API_URL}/auth/register`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${idToken}` },
+      body: JSON.stringify({ name: '', role: selectedRole }),
+    });
+    if (profileRes.ok) {
+      const profileData = await profileRes.json();
+      resolvedUser = profileData.user;
+      setUser(profileData.user); setRoleState(profileData.user.role);
+    } else {
+      const existing = await fetch(`${API_URL}/auth/profile`, {
+        headers: { Authorization: `Bearer ${idToken}` },
       });
-      if (res.ok) {
-        const data = await res.json();
-        setUser(data.user);
-        setRoleState(data.user.role);
+      if (existing.ok) {
+        const profileData = await existing.json();
+        resolvedUser = profileData.user;
+        setUser(profileData.user); setRoleState(profileData.user.role);
       }
     }
     setPendingRole(null);
+    return resolvedUser;
   };
 
-  // Kept for pages that still call login() during transition
-  const login = (r: UserRole, _phone: string) => {
-    setPendingRole(r);
-  };
+  const login = (r: UserRole, _phone: string) => setPendingRole(r);
 
   const logout = async () => {
     await auth.signOut();
-    setUser(null);
-    setRoleState(null);
-    setPendingRole(null);
-    setPendingPhone('');
+    setUser(null); setRoleState(null);
+    setPendingRole(null); setPendingPhone('');
   };
 
   return (
     <AuthContext.Provider value={{
-      user, role, loading,
-      pendingRole, pendingPhone,
-      setRole, setPendingPhone,
-      sendOTP, verifyOTP, login, logout,
+      user, role, loading, pendingRole, pendingPhone,
+      setRole, setPendingPhone, sendOTP, verifyOTP, login, logout,
     }}>
       {children}
     </AuthContext.Provider>

@@ -10,6 +10,7 @@ import VendorLayout from './components/layout/VendorLayout';
 import Landing from './pages/Landing/Landing';
 import Login from './pages/Auth/Login';
 import OTPVerify from './pages/Auth/OTPVerify';
+import ProfileSetup from './pages/Auth/ProfileSetup';
 
 // Customer
 import CustomerHome from './pages/Customer/Home/CustomerHome';
@@ -23,11 +24,15 @@ import CustomerEstimate from './pages/Customer/Estimate/CustomerEstimate';
 import MyEstimates from './pages/Customer/Estimate/MyEstimates';
 import CustomerNotifications from './pages/Customer/Notifications/CustomerNotifications';
 import CustomerProfile from './pages/Customer/Profile/CustomerProfile';
+import EditProfile from './pages/Customer/Profile/EditProfile';
+import HelpSupport from './pages/Customer/Help/HelpSupport';
 
 // Vendor
 import VendorHome from './pages/Vendor/Home/VendorHome';
 import VendorMachines from './pages/Vendor/Machines/VendorMachines';
 import AddMachine from './pages/Vendor/Machines/AddMachine';
+import EditMachine from './pages/Vendor/Machines/EditMachine';
+import EditVendorProfile from './pages/Vendor/Profile/EditVendorProfile';
 import VendorBookings from './pages/Vendor/Bookings/VendorBookings';
 import VendorEarnings from './pages/Vendor/Earnings/VendorEarnings';
 import VendorNotifications from './pages/Vendor/Notifications/VendorNotifications';
@@ -56,6 +61,7 @@ function AppRoutes() {
       <Route path="/" element={<Landing />} />
       <Route path="/login" element={<Login />} />
       <Route path="/otp" element={<OTPVerify />} />
+      <Route path="/profile-setup" element={<ProfileSetup />} />
 
       {/* Customer */}
       <Route element={<CustomerGuard><CustomerLayout /></CustomerGuard>}>
@@ -70,6 +76,8 @@ function AppRoutes() {
         <Route path="/customer/estimates" element={<MyEstimates />} />
         <Route path="/customer/notifications" element={<CustomerNotifications />} />
         <Route path="/customer/profile" element={<CustomerProfile />} />
+        <Route path="/customer/profile/edit" element={<EditProfile />} />
+        <Route path="/customer/help" element={<HelpSupport />} />
       </Route>
 
       {/* Vendor */}
@@ -77,10 +85,12 @@ function AppRoutes() {
         <Route path="/vendor/home" element={<VendorHome />} />
         <Route path="/vendor/machines" element={<VendorMachines />} />
         <Route path="/vendor/machines/add" element={<AddMachine />} />
+        <Route path="/vendor/machines/:id/edit" element={<EditMachine />} />
         <Route path="/vendor/bookings" element={<VendorBookings />} />
         <Route path="/vendor/earnings" element={<VendorEarnings />} />
         <Route path="/vendor/notifications" element={<VendorNotifications />} />
         <Route path="/vendor/profile" element={<VendorProfile />} />
+        <Route path="/vendor/profile/edit" element={<EditVendorProfile />} />
       </Route>
 
       {/* Fallback */}

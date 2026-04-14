@@ -1,23 +1,54 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Trash2, MapPin, IndianRupee, ToggleLeft, ToggleRight } from 'lucide-react';
-import { mockMachines, MACHINE_ICONS } from '../../../data/mockData';
+import { Plus, Trash2, MapPin, IndianRupee, ToggleLeft, ToggleRight, Edit2 } from 'lucide-react';
+import { getMyMachines, deleteMachine as apiDeleteMachine, toggleMachineAvailability } from '../../../services/api';
 import type { Machine } from '../../../types';
 import Badge from '../../../components/common/Badge';
+import toast from 'react-hot-toast';
+
+const MACHINE_ICONS: Record<string, string> = {
+  JCB: '🚜', Excavator: '⛏️', Crane: '🏗️', Bulldozer: '🚧', Roller: '🛞', Pokelane: '🛣️',
+};
 
 export default function VendorMachines() {
   const navigate = useNavigate();
-  const [machines, setMachines] = useState<Machine[]>(mockMachines.filter(m => m.vendorId === 'v1'));
 
-  const toggleAvailability = (id: string) => {
-    setMachines(prev => prev.map(m => m.id === id ? { ...m, isAvailable: !m.isAvailable } : m));
-  };
+  const [machines, setMachines] = useState<Machine[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
 
-  const deleteMachine = (id: string) => {
-    if (window.confirm('Delete this machine?')) {
-      setMachines(prev => prev.filter(m => m.id !== id));
+  useEffect(() => {
+    getMyMachines()
+      .then((res: any) => setMachines(res.machines || []))
+      .catch((err: any) => setError(err.message || 'Failed to load machines'))
+      .finally(() => setLoading(false));
+  }, []);
+
+  const handleToggleAvailability = async (id: string, current: boolean) => {
+    const next = !current;
+    setMachines(prev => prev.map(m => m.id === id ? { ...m, isAvailable: next } : m));
+    try {
+      await toggleMachineAvailability(id, next);
+      toast.success(next ? 'Machine set to Available' : 'Machine set to Unavailable');
+    } catch (err: any) {
+      setMachines(prev => prev.map(m => m.id === id ? { ...m, isAvailable: current } : m));
+      toast.error(err.message || 'Failed to update availability');
     }
   };
+
+  const handleDelete = async (id: string) => {
+    if (!window.confirm('Delete this machine?')) return;
+    try {
+      await apiDeleteMachine(id);
+      setMachines(prev => prev.filter(m => m.id !== id));
+      toast.success('Machine deleted');
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to delete machine');
+    }
+  };
+
+  if (loading) return <div style={{ textAlign: 'center', padding: 40 }}>Loading...</div>;
+  if (error) return <div style={{ textAlign: 'center', padding: 40, color: '#E53935' }}>{error}</div>;
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }} className="fade-in">
@@ -53,9 +84,16 @@ export default function VendorMachines() {
                   <div style={{ color: '#fff', fontSize: 16, fontWeight: 800, marginTop: 2 }}>{m.model}</div>
                 </div>
               </div>
-              <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+              <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
                 <Badge status={m.approvalStatus} />
-                <button onClick={() => deleteMachine(m.id)} style={{ background: 'rgba(229,57,53,0.1)', border: 'none', borderRadius: 8, padding: 8, cursor: 'pointer', color: '#E53935', display: 'flex', transition: 'background 0.15s' }}
+                <button onClick={() => navigate(`/vendor/machines/${m.id}/edit`)} style={{ background: 'rgba(255,140,0,0.1)', border: 'none', borderRadius: 8, padding: 8, cursor: 'pointer', color: '#FF8C00', display: 'flex', transition: 'background 0.15s' }}
+                  title="Edit machine"
+                  onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(255,140,0,0.2)'; }}
+                  onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(255,140,0,0.1)'; }}
+                >
+                  <Edit2 size={15} strokeWidth={1.5} />
+                </button>
+                <button onClick={() => handleDelete(m.id)} style={{ background: 'rgba(229,57,53,0.1)', border: 'none', borderRadius: 8, padding: 8, cursor: 'pointer', color: '#E53935', display: 'flex', transition: 'background 0.15s' }}
                   onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(229,57,53,0.2)'; }}
                   onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(229,57,53,0.1)'; }}
                 >
@@ -95,7 +133,7 @@ export default function VendorMachines() {
                     {m.isAvailable ? 'Available' : 'Unavailable'}
                   </span>
                 </div>
-                <button onClick={() => toggleAvailability(m.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', color: m.isAvailable ? '#FF8C00' : '#9CA3AF', transition: 'color 0.15s' }}>
+                <button onClick={() => handleToggleAvailability(m.id, m.isAvailable)} style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', color: m.isAvailable ? '#FF8C00' : '#9CA3AF', transition: 'color 0.15s' }}>
                   {m.isAvailable ? <ToggleRight size={28} strokeWidth={1.5} /> : <ToggleLeft size={28} strokeWidth={1.5} />}
                 </button>
               </div>

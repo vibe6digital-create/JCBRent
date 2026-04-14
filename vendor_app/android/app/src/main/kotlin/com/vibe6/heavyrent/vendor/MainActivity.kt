@@ -1,4 +1,4 @@
-package com.heavyrent.heavyrent_vendor
+package com.vibe6.heavyrent.vendor
 
 import io.flutter.embedding.android.FlutterActivity
 

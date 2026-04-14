@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Bell, Check } from 'lucide-react';
-import { mockVendorNotifications } from '../../../data/mockData';
+import { getNotifications, markNotificationRead } from '../../../services/api';
 import type { Notification } from '../../../types';
 
 const TYPE_CONFIG: Record<string, { bg: string; icon: string }> = {
@@ -12,11 +12,31 @@ const TYPE_CONFIG: Record<string, { bg: string; icon: string }> = {
 };
 
 export default function VendorNotifications() {
-  const [notifications, setNotifications] = useState<Notification[]>(mockVendorNotifications);
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    getNotifications()
+      .then((res: any) => setNotifications(res.notifications || []))
+      .catch((err: any) => setError(err.message || 'Failed to load notifications'))
+      .finally(() => setLoading(false));
+  }, []);
+
   const unread = notifications.filter(n => !n.isRead).length;
 
-  const markAllRead = () => setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
-  const markRead = (id: string) => setNotifications(prev => prev.map(n => n.id === id ? { ...n, isRead: true } : n));
+  const markAllRead = () => {
+    notifications.filter(n => !n.isRead).forEach(n => markNotificationRead(n.id).catch(() => {}));
+    setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
+  };
+
+  const markRead = (id: string) => {
+    markNotificationRead(id).catch(() => {});
+    setNotifications(prev => prev.map(n => n.id === id ? { ...n, isRead: true } : n));
+  };
+
+  if (loading) return <div style={{ textAlign: 'center', padding: 40 }}>Loading...</div>;
+  if (error) return <div style={{ textAlign: 'center', padding: 40, color: '#E53935' }}>{error}</div>;
 
   return (
     <div style={{ maxWidth: 680, display: 'flex', flexDirection: 'column', gap: 16 }} className="fade-in">
@@ -33,7 +53,14 @@ export default function VendorNotifications() {
           </button>
         )}
       </div>
-      {notifications.map(n => {
+
+      {notifications.length === 0 ? (
+        <div style={{ textAlign: 'center', padding: 60 }}>
+          <div style={{ fontSize: 48, marginBottom: 12 }}>🔔</div>
+          <h3 style={{ fontSize: 16, fontWeight: 700, color: '#1A1D26', marginBottom: 6 }}>No notifications yet</h3>
+          <p style={{ color: '#9CA3AF', fontSize: 14 }}>We'll notify you about booking updates here</p>
+        </div>
+      ) : notifications.map(n => {
         const cfg = TYPE_CONFIG[n.type] ?? TYPE_CONFIG.general;
         return (
           <div key={n.id} onClick={() => markRead(n.id)}

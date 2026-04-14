@@ -1,8 +1,43 @@
+import { useState, useEffect } from 'react';
 import { IndianRupee, TrendingUp, Calendar, Star } from 'lucide-react';
-import { mockVendorBookings, MACHINE_ICONS, VENDOR_EARNINGS } from '../../../data/mockData';
+import { getVendorBookings, getVendorEarnings } from '../../../services/api';
+import type { Booking } from '../../../types';
+
+const MACHINE_ICONS: Record<string, string> = {
+  JCB: '🚜', Excavator: '⛏️', Crane: '🏗️', Bulldozer: '🚧', Roller: '🛞', Pokelane: '🛣️',
+};
 
 export default function VendorEarnings() {
-  const completedBookings = mockVendorBookings.filter(b => b.status === 'completed');
+  const [bookings, setBookings] = useState<Booking[]>([]);
+  const [earnings, setEarnings] = useState<{ total: number; thisMonth: number; month: number } | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    Promise.all([
+      getVendorBookings().then((res: any) => setBookings(res.bookings || [])).catch(() => setBookings([])),
+      getVendorEarnings().then((res: any) => setEarnings(res.earnings || null)).catch(() => setEarnings(null)),
+    ])
+      .catch((err: any) => setError(err.message || 'Failed to load earnings'))
+      .finally(() => setLoading(false));
+  }, []);
+
+  if (loading) return <div style={{ textAlign: 'center', padding: 40 }}>Loading...</div>;
+  if (error) return <div style={{ textAlign: 'center', padding: 40, color: '#E53935' }}>{error}</div>;
+
+  const completedBookings = bookings.filter(b => b.status === 'completed');
+
+  const now = new Date();
+  const todayStr = now.toISOString().split('T')[0];
+  const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+
+  const todayEarnings = completedBookings
+    .filter(b => b.endDate === todayStr)
+    .reduce((s, b) => s + b.estimatedCost, 0);
+
+  const weekEarnings = completedBookings
+    .filter(b => new Date(b.endDate) >= weekAgo)
+    .reduce((s, b) => s + b.estimatedCost, 0);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }} className="fade-in">
@@ -22,11 +57,11 @@ export default function VendorEarnings() {
           <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
             <IndianRupee size={28} color="#fff" strokeWidth={1.5} />
             <span style={{ color: '#fff', fontSize: 42, fontWeight: 800, letterSpacing: '-0.02em' }}>
-              {VENDOR_EARNINGS.total.toLocaleString('en-IN')}
+              {(earnings?.total || 0).toLocaleString('en-IN')}
             </span>
           </div>
           <div style={{ color: 'rgba(255,255,255,0.65)', fontSize: 13 }}>
-            From {VENDOR_EARNINGS.completedCount} completed bookings
+            From {completedBookings.length} completed bookings
           </div>
         </div>
       </div>
@@ -34,9 +69,9 @@ export default function VendorEarnings() {
       {/* Period Cards */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16 }}>
         {[
-          { icon: Calendar, label: 'Today', value: VENDOR_EARNINGS.today, color: '#43A047', bg: '#E8F5E9' },
-          { icon: TrendingUp, label: 'This Week', value: VENDOR_EARNINGS.thisWeek, color: '#3B82F6', bg: '#EFF6FF' },
-          { icon: IndianRupee, label: 'This Month', value: VENDOR_EARNINGS.thisMonth, color: '#FF8C00', bg: '#FFF3E0' },
+          { icon: Calendar, label: 'Today', value: todayEarnings, color: '#43A047', bg: '#E8F5E9' },
+          { icon: TrendingUp, label: 'This Week', value: weekEarnings, color: '#3B82F6', bg: '#EFF6FF' },
+          { icon: IndianRupee, label: 'This Month', value: earnings?.thisMonth || earnings?.month || 0, color: '#FF8C00', bg: '#FFF3E0' },
         ].map(s => (
           <div key={s.label} style={{ background: '#fff', borderRadius: 14, border: '1px solid #E5E7EB', padding: '20px 22px' }}>
             <div style={{ width: 42, height: 42, background: s.bg, borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 12 }}>

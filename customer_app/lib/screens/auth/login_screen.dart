@@ -105,23 +105,28 @@ class _LoginScreenState extends State<LoginScreen> {
     setState(() { _isLoading = true; _error = null; });
     final formattedPhone = phone.startsWith('+') ? phone : '+91$phone';
 
-    await _authService.verifyPhone(
-      phoneNumber: formattedPhone,
-      onCodeSent: (verificationId) {
-        if (!mounted) return;
-        setState(() => _isLoading = false);
-        Navigator.push(context, MaterialPageRoute(
-          builder: (_) => OTPScreen(
-            phoneNumber: formattedPhone,
-            verificationId: verificationId,
-          ),
-        ));
-      },
-      onFailed: (error) {
-        if (!mounted) return;
-        setState(() { _isLoading = false; _error = error; });
-      },
-    );
+    try {
+      await _authService.verifyPhone(
+        phoneNumber: formattedPhone,
+        onCodeSent: (verificationId) {
+          if (!mounted) return;
+          setState(() => _isLoading = false);
+          Navigator.push(context, MaterialPageRoute(
+            builder: (_) => OTPScreen(
+              phoneNumber: formattedPhone,
+              verificationId: verificationId,
+            ),
+          ));
+        },
+        onFailed: (error) {
+          if (!mounted) return;
+          setState(() { _isLoading = false; _error = error; });
+        },
+      );
+    } catch (e) {
+      if (!mounted) return;
+      setState(() { _isLoading = false; _error = e.toString().replaceFirst('Exception: ', ''); });
+    }
   }
 
   @override

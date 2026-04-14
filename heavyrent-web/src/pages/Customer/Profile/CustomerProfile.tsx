@@ -1,19 +1,28 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../../context/AuthContext';
-import { Phone, Mail, MapPin, CalendarCheck, ClipboardList, Bell, HelpCircle, LogOut, Edit2, Check, X, Copy, Building2, User } from 'lucide-react';
-import { mockCustomerBookings } from '../../../data/mockData';
+import { Phone, Mail, MapPin, CalendarCheck, ClipboardList, Bell, HelpCircle, LogOut, Edit2, Copy, Building2, User } from 'lucide-react';
+import { getCustomerBookings } from '../../../services/api';
+import type { Booking } from '../../../types';
 import toast from 'react-hot-toast';
 
 export default function CustomerProfile() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
-  const [editing, setEditing] = useState(false);
-  const [name, setName] = useState(user?.name || '');
-  const [city, setCity] = useState(user?.city || '');
+  const name = user?.name || '';
+  const city = user?.city || '';
 
-  const completedBookings = mockCustomerBookings.filter(b => b.status === 'completed').length;
+  const [bookings, setBookings] = useState<Booking[]>([]);
+  const [loadingBookings, setLoadingBookings] = useState(true);
 
+  useEffect(() => {
+    getCustomerBookings()
+      .then((res: any) => setBookings(res.bookings || []))
+      .catch(() => setBookings([]))
+      .finally(() => setLoadingBookings(false));
+  }, []);
+
+  const completedBookings = bookings.filter(b => b.status === 'completed').length;
   const referralCode = user?.referralCode || 'HEAVY' + (user?.uid?.slice(-4).toUpperCase() ?? '----');
   const profileType = user?.profileType ?? 'personal';
 
@@ -24,10 +33,10 @@ export default function CustomerProfile() {
   };
 
   const menuItems = [
-    { icon: CalendarCheck, label: 'My Bookings', sub: `${mockCustomerBookings.length} bookings`, action: () => navigate('/customer/bookings') },
-    { icon: ClipboardList, label: 'My Estimates', sub: '3 estimates', action: () => navigate('/customer/estimates') },
-    { icon: Bell, label: 'Notifications', sub: '2 unread', action: () => navigate('/customer/notifications') },
-    { icon: HelpCircle, label: 'Help & Support', sub: 'FAQ, Contact us', action: () => {} },
+    { icon: CalendarCheck, label: 'My Bookings', sub: loadingBookings ? 'Loading...' : `${bookings.length} bookings`, action: () => navigate('/customer/bookings') },
+    { icon: ClipboardList, label: 'My Estimates', sub: 'View estimates', action: () => navigate('/customer/estimates') },
+    { icon: Bell, label: 'Notifications', sub: 'Booking updates', action: () => navigate('/customer/notifications') },
+    { icon: HelpCircle, label: 'Help & Support', sub: 'FAQ, Contact us', action: () => navigate('/customer/help') },
   ];
 
   return (
@@ -52,43 +61,26 @@ export default function CustomerProfile() {
         </div>
 
         {/* Edit button */}
-        {!editing ? (
-          <button onClick={() => setEditing(true)} style={{
-            position: 'absolute', top: 16, right: 16,
-            background: 'rgba(255,255,255,0.2)', border: 'none', borderRadius: 8,
-            padding: 8, cursor: 'pointer', color: '#fff', display: 'flex',
-          }}>
-            <Edit2 size={15} strokeWidth={1.5} />
-          </button>
-        ) : (
-          <div style={{ position: 'absolute', top: 16, right: 16, display: 'flex', gap: 6 }}>
-            <button onClick={() => setEditing(false)} style={{ background: '#43A047', border: 'none', borderRadius: 8, padding: '6px 10px', cursor: 'pointer', color: '#fff', display: 'flex', alignItems: 'center', gap: 4, fontWeight: 700, fontSize: 12 }}><Check size={12} strokeWidth={2.5} /> Save</button>
-            <button onClick={() => setEditing(false)} style={{ background: 'rgba(255,255,255,0.2)', border: 'none', borderRadius: 8, padding: '6px 8px', cursor: 'pointer', color: '#fff', display: 'flex' }}><X size={14} strokeWidth={2} /></button>
-          </div>
-        )}
+        <button onClick={() => navigate('/customer/profile/edit')} style={{
+          position: 'absolute', top: 16, right: 16,
+          background: 'rgba(255,255,255,0.2)', border: 'none', borderRadius: 8,
+          padding: '6px 12px', cursor: 'pointer', color: '#fff', display: 'flex', alignItems: 'center', gap: 5, fontWeight: 700, fontSize: 12,
+        }}>
+          <Edit2 size={13} strokeWidth={1.5} /> Edit
+        </button>
 
         <div style={{ position: 'relative', display: 'flex', gap: 18, alignItems: 'center', marginTop: 12 }}>
           <div style={{ width: 72, height: 72, borderRadius: '50%', background: 'rgba(255,255,255,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 800, fontSize: 28, border: '3px solid rgba(255,255,255,0.4)', flexShrink: 0 }}>
             {user?.name.charAt(0)}
           </div>
           <div>
-            {editing ? (
-              <input value={name} onChange={e => setName(e.target.value)}
-                style={{ background: 'rgba(255,255,255,0.2)', border: '1px solid rgba(255,255,255,0.4)', borderRadius: 8, padding: '6px 10px', color: '#fff', fontSize: 18, fontWeight: 700, marginBottom: 6, width: 200 }} />
-            ) : (
-              <div style={{ color: '#fff', fontSize: 22, fontWeight: 800, marginBottom: 4 }}>{name}</div>
-            )}
+            <div style={{ color: '#fff', fontSize: 22, fontWeight: 800, marginBottom: 4 }}>{name}</div>
             <div style={{ color: 'rgba(255,255,255,0.8)', fontSize: 13, display: 'flex', alignItems: 'center', gap: 6 }}>
               <Phone size={12} strokeWidth={1.5} /> {user?.phone}
             </div>
-            {editing ? (
-              <input value={city} onChange={e => setCity(e.target.value)} placeholder="Your city"
-                style={{ marginTop: 6, background: 'rgba(255,255,255,0.2)', border: '1px solid rgba(255,255,255,0.4)', borderRadius: 6, padding: '4px 8px', color: '#fff', fontSize: 13, width: 150 }} />
-            ) : (
-              <div style={{ color: 'rgba(255,255,255,0.75)', fontSize: 13, display: 'flex', alignItems: 'center', gap: 4, marginTop: 4 }}>
-                <MapPin size={11} strokeWidth={1.5} /> {city || 'Location not set'}, {user?.state}
-              </div>
-            )}
+            <div style={{ color: 'rgba(255,255,255,0.75)', fontSize: 13, display: 'flex', alignItems: 'center', gap: 4, marginTop: 4 }}>
+              <MapPin size={11} strokeWidth={1.5} /> {city || 'Location not set'}{user?.state ? `, ${user.state}` : ''}
+            </div>
           </div>
         </div>
       </div>
@@ -96,9 +88,9 @@ export default function CustomerProfile() {
       {/* Stats */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
         {[
-          { label: 'Total Bookings', value: mockCustomerBookings.length },
-          { label: 'Completed', value: completedBookings },
-          { label: 'Pending', value: mockCustomerBookings.filter(b => b.status === 'pending').length },
+          { label: 'Total Bookings', value: loadingBookings ? '…' : bookings.length },
+          { label: 'Completed', value: loadingBookings ? '…' : completedBookings },
+          { label: 'Pending', value: loadingBookings ? '…' : bookings.filter(b => b.status === 'pending').length },
         ].map(s => (
           <div key={s.label} style={{ background: '#fff', borderRadius: 12, padding: '16px', border: '1px solid #E5E7EB', textAlign: 'center' }}>
             <div style={{ fontSize: 24, fontWeight: 800, color: '#1A1D26' }}>{s.value}</div>

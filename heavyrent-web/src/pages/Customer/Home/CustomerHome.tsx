@@ -1,9 +1,14 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../../context/AuthContext';
-import { Search, Zap, Star, MapPin, Clock, IndianRupee, ArrowRight, ChevronRight } from 'lucide-react';
-import { mockMachines, MACHINE_ICONS, mockCustomerBookings } from '../../../data/mockData';
+import { Search, Zap, MapPin, Clock, IndianRupee, ArrowRight, ChevronRight } from 'lucide-react';
+import { searchMachines, getCustomerBookings } from '../../../services/api';
+import type { Machine, Booking } from '../../../types';
 import Badge from '../../../components/common/Badge';
+
+const MACHINE_ICONS: Record<string, string> = {
+  JCB: '🚜', Excavator: '⛏️', Crane: '🏗️', Bulldozer: '🚧', Roller: '🛞', Pokelane: '🛣️',
+};
 
 const CATEGORIES = [
   { icon: '🚜', name: 'JCB' }, { icon: '⛏️', name: 'Excavator' },
@@ -20,13 +25,33 @@ export default function CustomerHome() {
   const navigate = useNavigate();
   const [searchQ, setSearchQ] = useState('');
 
-  const recentBookings = mockCustomerBookings.slice(0, 3);
-  const featuredMachines = mockMachines.filter(m => m.approvalStatus === 'approved').slice(0, 4);
+  const [machines, setMachines] = useState<Machine[]>([]);
+  const [bookings, setBookings] = useState<Booking[]>([]);
+  const [loadingMachines, setLoadingMachines] = useState(true);
+  const [loadingBookings, setLoadingBookings] = useState(true);
+
+  useEffect(() => {
+    searchMachines({})
+      .then((res: any) => setMachines((res.machines || []).filter((m: Machine) => m.approvalStatus === 'approved').slice(0, 4)))
+      .catch(() => setMachines([]))
+      .finally(() => setLoadingMachines(false));
+  }, []);
+
+  useEffect(() => {
+    getCustomerBookings()
+      .then((res: any) => setBookings((res.bookings || []).slice(0, 3)))
+      .catch(() => setBookings([]))
+      .finally(() => setLoadingBookings(false));
+  }, []);
 
   const handleSearch = () => {
     if (searchQ.trim()) navigate(`/customer/search?q=${encodeURIComponent(searchQ)}`);
     else navigate('/customer/search');
   };
+
+  const totalBookings = bookings.length;
+  const completedCount = bookings.filter(b => b.status === 'completed').length;
+  const activeCount = bookings.filter(b => ['accepted', 'in_progress'].includes(b.status)).length;
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 28 }} className="fade-in">
@@ -55,7 +80,7 @@ export default function CustomerHome() {
                 onChange={e => setSearchQ(e.target.value)}
                 onKeyDown={e => e.key === 'Enter' && handleSearch()}
                 placeholder="Search machines by city or type..."
-                style={{ flex: 1, background: 'none', border: 'none', color: '#fff', fontSize: 14, '::placeholder': { color: '#6B7280' } } as React.CSSProperties}
+                style={{ flex: 1, background: 'none', border: 'none', color: '#fff', fontSize: 14 } as React.CSSProperties}
               />
             </div>
             <button onClick={handleSearch} style={{
@@ -129,49 +154,58 @@ export default function CustomerHome() {
               See All <ChevronRight size={14} strokeWidth={2} />
             </button>
           </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-            {featuredMachines.map(m => (
-              <div key={m.id} onClick={() => navigate(`/customer/machine/${m.id}`)}
-                style={{
-                  background: '#fff', borderRadius: 12, border: '1px solid #E5E7EB',
-                  padding: '16px 18px', cursor: 'pointer', display: 'flex', gap: 14, alignItems: 'center',
-                  transition: 'all 0.15s',
-                }}
-                onMouseEnter={e => { const el = e.currentTarget as HTMLElement; el.style.boxShadow = '0 4px 16px rgba(0,0,0,0.08)'; el.style.borderColor = '#FF8C00'; }}
-                onMouseLeave={e => { const el = e.currentTarget as HTMLElement; el.style.boxShadow = 'none'; el.style.borderColor = '#E5E7EB'; }}
-              >
-                <div style={{
-                  width: 56, height: 56, borderRadius: 12, background: '#FFF3E0',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 28, flexShrink: 0,
-                }}>
-                  {MACHINE_ICONS[m.category]}
-                </div>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                    <div>
-                      <div style={{ fontSize: 14, fontWeight: 700, color: '#1A1D26' }}>{m.model}</div>
-                      <div style={{ fontSize: 12, color: '#FF8C00', fontWeight: 600, marginTop: 1 }}>{m.category}</div>
-                    </div>
-                    <Badge status={m.isAvailable ? 'available' : 'unavailable'} />
+          {loadingMachines ? (
+            <div style={{ textAlign: 'center', padding: 40 }}>Loading...</div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              {machines.map(m => (
+                <div key={m.id} onClick={() => navigate(`/customer/machine/${m.id}`)}
+                  style={{
+                    background: '#fff', borderRadius: 12, border: '1px solid #E5E7EB',
+                    padding: '16px 18px', cursor: 'pointer', display: 'flex', gap: 14, alignItems: 'center',
+                    transition: 'all 0.15s',
+                  }}
+                  onMouseEnter={e => { const el = e.currentTarget as HTMLElement; el.style.boxShadow = '0 4px 16px rgba(0,0,0,0.08)'; el.style.borderColor = '#FF8C00'; }}
+                  onMouseLeave={e => { const el = e.currentTarget as HTMLElement; el.style.boxShadow = 'none'; el.style.borderColor = '#E5E7EB'; }}
+                >
+                  <div style={{
+                    width: 56, height: 56, borderRadius: 12, background: '#FFF3E0',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 28, flexShrink: 0,
+                  }}>
+                    {MACHINE_ICONS[m.category]}
                   </div>
-                  <div style={{ display: 'flex', gap: 16, marginTop: 8 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 12, color: '#6B7280' }}>
-                      <MapPin size={11} strokeWidth={1.5} /> {m.location.city}
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                      <div>
+                        <div style={{ fontSize: 14, fontWeight: 700, color: '#1A1D26' }}>{m.model}</div>
+                        <div style={{ fontSize: 12, color: '#FF8C00', fontWeight: 600, marginTop: 1 }}>{m.category}</div>
+                      </div>
+                      <Badge status={m.isAvailable ? 'available' : 'unavailable'} />
                     </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 12, color: '#6B7280' }}>
-                      <Clock size={11} strokeWidth={1.5} />
-                      <span style={{ color: '#1A1D26', fontWeight: 700 }}>₹{m.hourlyRate.toLocaleString('en-IN')}</span>/hr
-                    </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 12, color: '#6B7280' }}>
-                      <IndianRupee size={11} strokeWidth={1.5} />
-                      <span style={{ color: '#1A1D26', fontWeight: 700 }}>{m.dailyRate.toLocaleString('en-IN')}</span>/day
+                    <div style={{ display: 'flex', gap: 16, marginTop: 8 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 12, color: '#6B7280' }}>
+                        <MapPin size={11} strokeWidth={1.5} /> {m.location.city}
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 12, color: '#6B7280' }}>
+                        <Clock size={11} strokeWidth={1.5} />
+                        <span style={{ color: '#1A1D26', fontWeight: 700 }}>₹{m.hourlyRate.toLocaleString('en-IN')}</span>/hr
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 12, color: '#6B7280' }}>
+                        <IndianRupee size={11} strokeWidth={1.5} />
+                        <span style={{ color: '#1A1D26', fontWeight: 700 }}>{m.dailyRate.toLocaleString('en-IN')}</span>/day
+                      </div>
                     </div>
                   </div>
+                  <ChevronRight size={16} color="#9CA3AF" strokeWidth={1.5} />
                 </div>
-                <ChevronRight size={16} color="#9CA3AF" strokeWidth={1.5} />
-              </div>
-            ))}
-          </div>
+              ))}
+              {machines.length === 0 && (
+                <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #E5E7EB', padding: 32, textAlign: 'center', color: '#9CA3AF', fontSize: 14 }}>
+                  No machines available yet
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Recent Bookings */}
@@ -182,46 +216,55 @@ export default function CustomerHome() {
               View All <ChevronRight size={14} strokeWidth={2} />
             </button>
           </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            {recentBookings.map(b => (
-              <div key={b.id} onClick={() => navigate(`/customer/bookings/${b.id}`)}
-                style={{
-                  background: '#fff', borderRadius: 12, border: '1px solid #E5E7EB',
-                  padding: '14px 16px', cursor: 'pointer', transition: 'all 0.15s',
-                }}
-                onMouseEnter={e => { const el = e.currentTarget as HTMLElement; el.style.boxShadow = '0 4px 12px rgba(0,0,0,0.06)'; el.style.borderColor = '#E0E0E0'; }}
-                onMouseLeave={e => { const el = e.currentTarget as HTMLElement; el.style.boxShadow = 'none'; el.style.borderColor = '#E5E7EB'; }}
-              >
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 6 }}>
-                  <div style={{ fontSize: 13, fontWeight: 700, color: '#1A1D26' }}>{b.machineModel}</div>
-                  <div style={{ width: 8, height: 8, borderRadius: '50%', background: STATUS_COLOR[b.status], marginTop: 4, flexShrink: 0 }} />
+          {loadingBookings ? (
+            <div style={{ textAlign: 'center', padding: 40 }}>Loading...</div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              {bookings.map(b => (
+                <div key={b.id} onClick={() => navigate(`/customer/bookings/${b.id}`)}
+                  style={{
+                    background: '#fff', borderRadius: 12, border: '1px solid #E5E7EB',
+                    padding: '14px 16px', cursor: 'pointer', transition: 'all 0.15s',
+                  }}
+                  onMouseEnter={e => { const el = e.currentTarget as HTMLElement; el.style.boxShadow = '0 4px 12px rgba(0,0,0,0.06)'; el.style.borderColor = '#E0E0E0'; }}
+                  onMouseLeave={e => { const el = e.currentTarget as HTMLElement; el.style.boxShadow = 'none'; el.style.borderColor = '#E5E7EB'; }}
+                >
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 6 }}>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: '#1A1D26' }}>{b.machineModel}</div>
+                    <div style={{ width: 8, height: 8, borderRadius: '50%', background: STATUS_COLOR[b.status], marginTop: 4, flexShrink: 0 }} />
+                  </div>
+                  <div style={{ fontSize: 11, color: '#9CA3AF', marginBottom: 8 }}>{b.machineCategory} · {b.workCity}</div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span style={{ fontSize: 12, color: '#6B7280' }}>{b.startDate} → {b.endDate}</span>
+                    <Badge status={b.status} />
+                  </div>
+                  {b.status === 'in_progress' && (
+                    <button onClick={e => { e.stopPropagation(); navigate(`/customer/tracking/${b.id}`); }} style={{
+                      marginTop: 10, width: '100%', padding: '7px', borderRadius: 8,
+                      background: '#EFF6FF', border: '1px solid #BFDBFE', color: '#3B82F6',
+                      fontSize: 12, fontWeight: 700, cursor: 'pointer',
+                    }}>
+                      📍 Track Vehicle Live
+                    </button>
+                  )}
                 </div>
-                <div style={{ fontSize: 11, color: '#9CA3AF', marginBottom: 8 }}>{b.machineCategory} · {b.workCity}</div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span style={{ fontSize: 12, color: '#6B7280' }}>{b.startDate} → {b.endDate}</span>
-                  <Badge status={b.status} />
+              ))}
+              {bookings.length === 0 && (
+                <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #E5E7EB', padding: 24, textAlign: 'center', color: '#9CA3AF', fontSize: 14 }}>
+                  No bookings yet
                 </div>
-                {b.status === 'in_progress' && (
-                  <button onClick={e => { e.stopPropagation(); navigate(`/customer/tracking/${b.id}`); }} style={{
-                    marginTop: 10, width: '100%', padding: '7px', borderRadius: 8,
-                    background: '#EFF6FF', border: '1px solid #BFDBFE', color: '#3B82F6',
-                    fontSize: 12, fontWeight: 700, cursor: 'pointer',
-                  }}>
-                    📍 Track Vehicle Live
-                  </button>
-                )}
-              </div>
-            ))}
-          </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
 
       {/* Stats Row */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 14 }}>
         {[
-          { icon: '📦', label: 'Total Bookings', value: mockCustomerBookings.length },
-          { icon: '✅', label: 'Completed', value: mockCustomerBookings.filter(b => b.status === 'completed').length },
-          { icon: '⏳', label: 'Active', value: mockCustomerBookings.filter(b => ['accepted', 'in_progress'].includes(b.status)).length },
+          { icon: '📦', label: 'Total Bookings', value: loadingBookings ? '…' : totalBookings },
+          { icon: '✅', label: 'Completed', value: loadingBookings ? '…' : completedCount },
+          { icon: '⏳', label: 'Active', value: loadingBookings ? '…' : activeCount },
           { icon: '⭐', label: 'Avg Rating Given', value: '4.8' },
         ].map(s => (
           <div key={s.label} style={{ background: '#fff', borderRadius: 12, padding: '16px 18px', border: '1px solid #E5E7EB', display: 'flex', gap: 12, alignItems: 'center' }}>

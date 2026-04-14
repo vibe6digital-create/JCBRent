@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Zap, ArrowRight, Clock, IndianRupee, Info, Upload, X } from 'lucide-react';
+import { createEstimate } from '../../../services/api';
 import type { WorkType, AreaSize, SoilType, MachineCategory } from '../../../types';
 
 interface EstimateResult {
@@ -53,11 +54,25 @@ export default function CustomerEstimate() {
   const [photos, setPhotos] = useState<string[]>([]);
   const [result, setResult] = useState<EstimateResult | null>(null);
 
+  const [saving, setSaving] = useState(false);
   const canSubmit = workType && areaSize && soilType;
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!canSubmit) return;
-    setResult(computeEstimate(workType as WorkType, areaSize as AreaSize, soilType as SoilType));
+    const computed = computeEstimate(workType as WorkType, areaSize as AreaSize, soilType as SoilType);
+    setResult(computed);
+    // Save to backend (fire-and-forget — don't block UI)
+    setSaving(true);
+    try {
+      await createEstimate({
+        workType: workType as WorkType,
+        areaSize: areaSize as AreaSize,
+        soilType: soilType as SoilType,
+        photoUrls: [],
+        machineCategory: computed.machineCategory,
+      });
+    } catch { /* ignore save errors, result still shown */ }
+    finally { setSaving(false); }
   };
 
   const handlePhotoAdd = () => {

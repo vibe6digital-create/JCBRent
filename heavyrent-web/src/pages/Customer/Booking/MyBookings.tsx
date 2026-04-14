@@ -1,8 +1,8 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Calendar, MapPin, IndianRupee, ChevronRight, Navigation } from 'lucide-react';
-import { mockCustomerBookings } from '../../../data/mockData';
-import type { BookingStatus } from '../../../types';
+import { getCustomerBookings } from '../../../services/api';
+import type { Booking, BookingStatus } from '../../../types';
 import Badge from '../../../components/common/Badge';
 
 type Tab = 'all' | 'active' | 'completed';
@@ -13,16 +13,28 @@ export default function MyBookings() {
   const navigate = useNavigate();
   const [tab, setTab] = useState<Tab>('all');
 
-  const filtered = mockCustomerBookings.filter(b => {
+  const [bookings, setBookings] = useState<Booking[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    setLoading(true);
+    getCustomerBookings()
+      .then((res: any) => setBookings(res.bookings || []))
+      .catch((err: any) => setError(err.message || 'Failed to load bookings'))
+      .finally(() => setLoading(false));
+  }, []);
+
+  const filtered = bookings.filter(b => {
     if (tab === 'active') return ACTIVE_STATUSES.includes(b.status);
     if (tab === 'completed') return b.status === 'completed' || b.status === 'rejected';
     return true;
   });
 
   const counts = {
-    all: mockCustomerBookings.length,
-    active: mockCustomerBookings.filter(b => ACTIVE_STATUSES.includes(b.status)).length,
-    completed: mockCustomerBookings.filter(b => ['completed', 'rejected'].includes(b.status)).length,
+    all: bookings.length,
+    active: bookings.filter(b => ACTIVE_STATUSES.includes(b.status)).length,
+    completed: bookings.filter(b => ['completed', 'rejected'].includes(b.status)).length,
   };
 
   const TABS: { key: Tab; label: string }[] = [
@@ -30,6 +42,9 @@ export default function MyBookings() {
     { key: 'active', label: 'Active' },
     { key: 'completed', label: 'Done' },
   ];
+
+  if (loading) return <div style={{ textAlign: 'center', padding: 40 }}>Loading...</div>;
+  if (error) return <div style={{ textAlign: 'center', padding: 40, color: '#E53935' }}>{error}</div>;
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }} className="fade-in">

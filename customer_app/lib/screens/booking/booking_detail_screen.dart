@@ -17,12 +17,12 @@ class BookingDetailScreen extends StatelessWidget {
       appBar: AppBar(
         title: const Text('Booking Details'),
         actions: [
-          if (booking.status == 'in_progress')
+          if (booking.status == 'in_progress' || booking.status == 'arrived')
             TextButton.icon(
               onPressed: () => Navigator.push(context,
                 MaterialPageRoute(builder: (_) => LiveTrackingScreen(booking: booking))),
               icon: const Icon(Icons.location_on, color: Colors.white),
-              label: const Text('Track', style: TextStyle(color: Colors.white)),
+              label: const Text('Track / OTP', style: TextStyle(color: Colors.white)),
             ),
         ],
       ),
@@ -192,6 +192,59 @@ class BookingDetailScreen extends StatelessWidget {
             ],
 
             // Action buttons
+            if (booking.status == 'arrived') ...[
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.teal.withAlpha(20),
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: Colors.teal.withAlpha(80)),
+                ),
+                child: Column(
+                  children: [
+                    const Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.check_circle, color: Colors.teal),
+                        SizedBox(width: 8),
+                        Text('Machine Has Arrived!',
+                          style: TextStyle(fontWeight: FontWeight.bold, color: Colors.teal, fontSize: 16)),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Share your OTP with the operator to start work',
+                      style: TextStyle(color: Colors.grey[700], fontSize: 13),
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 12),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: Colors.teal.withAlpha(80)),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Text('Your OTP', style: TextStyle(color: Colors.grey, fontSize: 13)),
+                          Text(
+                            booking.startOtp ?? '----',
+                            style: const TextStyle(
+                              fontSize: 26, fontWeight: FontWeight.bold,
+                              letterSpacing: 8, color: Colors.teal,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 12),
+            ],
             if (booking.status == 'in_progress') ...[
               SizedBox(
                 width: double.infinity,
@@ -237,6 +290,7 @@ class BookingDetailScreen extends StatelessWidget {
       case 'rejected': return AppTheme.errorColor;
       case 'completed': return Colors.blue;
       case 'in_progress': return Colors.purple;
+      case 'arrived': return Colors.teal;
       default: return Colors.orange;
     }
   }
@@ -247,6 +301,7 @@ class BookingDetailScreen extends StatelessWidget {
       case 'rejected': return Icons.cancel;
       case 'completed': return Icons.done_all;
       case 'in_progress': return Icons.local_shipping;
+      case 'arrived': return Icons.location_on;
       default: return Icons.hourglass_empty;
     }
   }
@@ -256,7 +311,8 @@ class BookingDetailScreen extends StatelessWidget {
       case 'pending': return 'Waiting for vendor to accept your booking';
       case 'accepted': return 'Vendor has accepted! Machine will arrive on schedule';
       case 'rejected': return 'Vendor could not accept this booking';
-      case 'in_progress': return 'Machine is on its way / Work is in progress';
+      case 'arrived': return 'Machine has arrived! Share your OTP with the operator to start work';
+      case 'in_progress': return 'Work is in progress';
       case 'completed': return 'Work has been completed successfully';
       default: return '';
     }
@@ -272,11 +328,12 @@ class _StatusTimeline extends StatelessWidget {
     final steps = [
       {'key': 'pending', 'label': 'Booking Requested', 'icon': Icons.send},
       {'key': 'accepted', 'label': 'Vendor Accepted', 'icon': Icons.check_circle},
+      {'key': 'arrived', 'label': 'Machine Arrived', 'icon': Icons.location_on},
       {'key': 'in_progress', 'label': 'Work In Progress', 'icon': Icons.local_shipping},
       {'key': 'completed', 'label': 'Completed', 'icon': Icons.done_all},
     ];
 
-    final statusOrder = ['pending', 'accepted', 'in_progress', 'completed'];
+    final statusOrder = ['pending', 'accepted', 'arrived', 'in_progress', 'completed'];
     final currentIndex = statusOrder.indexOf(currentStatus);
     final isRejected = currentStatus == 'rejected';
 

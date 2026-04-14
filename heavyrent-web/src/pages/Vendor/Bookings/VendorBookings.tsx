@@ -1,29 +1,83 @@
-import { useState } from 'react';
-import { Phone, Calendar, MapPin, IndianRupee, Check, X, Play, Flag, Star } from 'lucide-react';
-import { mockVendorBookings, MACHINE_ICONS } from '../../../data/mockData';
+import { useState, useEffect } from 'react';
+import { Phone, Calendar, MapPin, IndianRupee, Check, X, Truck, Flag, Star, KeyRound } from 'lucide-react';
+import { getVendorBookings, updateBookingStatus, markArrived, verifyStartOtp } from '../../../services/api';
 import type { Booking, BookingStatus } from '../../../types';
 import Badge from '../../../components/common/Badge';
+import toast from 'react-hot-toast';
+
+const MACHINE_ICONS: Record<string, string> = {
+  JCB: '🚜', Excavator: '⛏️', Crane: '🏗️', Bulldozer: '🚧', Roller: '🛞', Pokelane: '🛣️',
+};
 
 type Tab = 'pending' | 'active' | 'completed' | 'rejected';
 
 export default function VendorBookings() {
-  const [bookings, setBookings] = useState<Booking[]>(mockVendorBookings);
+  const [bookings, setBookings] = useState<Booking[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
   const [tab, setTab] = useState<Tab>('pending');
+  // OTP input state per booking
+  const [otpInputs, setOtpInputs] = useState<Record<string, string>>({});
+  const [otpLoading, setOtpLoading] = useState<Record<string, boolean>>({});
 
-  const updateStatus = (id: string, status: BookingStatus) => {
-    setBookings(prev => prev.map(b => b.id === id ? { ...b, status } : b));
+  useEffect(() => {
+    getVendorBookings()
+      .then((res: any) => setBookings(res.bookings || []))
+      .catch((err: any) => setError(err.message || 'Failed to load bookings'))
+      .finally(() => setLoading(false));
+  }, []);
+
+  const handleUpdateStatus = async (id: string, status: BookingStatus) => {
+    try {
+      await updateBookingStatus(id, status);
+      setBookings(prev => prev.map(b => b.id === id ? { ...b, status } : b));
+      const msgs: Partial<Record<BookingStatus, string>> = {
+        accepted: 'Booking accepted!',
+        rejected: 'Booking rejected',
+        completed: 'Booking marked complete!',
+      };
+      toast.success(msgs[status] || `Status updated to ${status}`);
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to update status');
+    }
+  };
+
+  const handleMarkArrived = async (id: string) => {
+    try {
+      await markArrived(id);
+      setBookings(prev => prev.map(b => b.id === id ? { ...b, status: 'arrived' } : b));
+      toast.success('Arrival marked — OTP sent to customer');
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to mark arrival');
+    }
+  };
+
+  const handleVerifyOtp = async (id: string) => {
+    const otp = otpInputs[id] || '';
+    if (otp.length < 4) { toast.error('Enter the 4-digit OTP'); return; }
+    setOtpLoading(prev => ({ ...prev, [id]: true }));
+    try {
+      await verifyStartOtp(id, otp);
+      setBookings(prev => prev.map(b => b.id === id ? { ...b, status: 'in_progress' } : b));
+      setOtpInputs(prev => ({ ...prev, [id]: '' }));
+      toast.success('OTP verified — Work started!');
+    } catch (err: any) {
+      toast.error(err.message || 'Invalid OTP');
+    } finally {
+      setOtpLoading(prev => ({ ...prev, [id]: false }));
+    }
   };
 
   const filtered = bookings.filter(b => {
     if (tab === 'pending') return b.status === 'pending';
-    if (tab === 'active') return ['accepted', 'in_progress'].includes(b.status);
+    if (tab === 'active') return ['accepted', 'arrived', 'in_progress'].includes(b.status);
     if (tab === 'completed') return b.status === 'completed';
     return b.status === 'rejected';
   });
 
   const counts: Record<Tab, number> = {
     pending: bookings.filter(b => b.status === 'pending').length,
-    active: bookings.filter(b => ['accepted', 'in_progress'].includes(b.status)).length,
+    active: bookings.filter(b => ['accepted', 'arrived', 'in_progress'].includes(b.status)).length,
     completed: bookings.filter(b => b.status === 'completed').length,
     rejected: bookings.filter(b => b.status === 'rejected').length,
   };
@@ -34,6 +88,9 @@ export default function VendorBookings() {
     { key: 'completed', label: 'Completed', color: '#43A047' },
     { key: 'rejected', label: 'Rejected', color: '#E53935' },
   ];
+
+  if (loading) return <div style={{ textAlign: 'center', padding: 40 }}>Loading...</div>;
+  if (error) return <div style={{ textAlign: 'center', padding: 40, color: '#E53935' }}>{error}</div>;
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }} className="fade-in">
@@ -130,11 +187,11 @@ export default function VendorBookings() {
                 </div>
               )}
 
-              {/* Action Buttons */}
-              <div style={{ display: 'flex', gap: 10 }}>
+              {/* ── Action Buttons by status ── */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                 {b.status === 'pending' && (
-                  <>
-                    <button onClick={() => updateStatus(b.id, 'accepted')} style={{
+                  <div style={{ display: 'flex', gap: 10 }}>
+                    <button onClick={() => handleUpdateStatus(b.id, 'accepted')} style={{
                       flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
                       padding: '10px', borderRadius: 10, background: '#43A047', color: '#fff',
                       fontWeight: 700, fontSize: 13, border: 'none', cursor: 'pointer', transition: 'background 0.15s',
@@ -144,7 +201,7 @@ export default function VendorBookings() {
                     >
                       <Check size={14} strokeWidth={2.5} /> Accept
                     </button>
-                    <button onClick={() => updateStatus(b.id, 'rejected')} style={{
+                    <button onClick={() => handleUpdateStatus(b.id, 'rejected')} style={{
                       flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
                       padding: '10px', borderRadius: 10, background: 'transparent', color: '#E53935',
                       fontWeight: 700, fontSize: 13, border: '1.5px solid #E53935', cursor: 'pointer', transition: 'background 0.15s',
@@ -154,24 +211,78 @@ export default function VendorBookings() {
                     >
                       <X size={14} strokeWidth={2.5} /> Reject
                     </button>
-                  </>
+                  </div>
                 )}
+
                 {b.status === 'accepted' && (
-                  <button onClick={() => updateStatus(b.id, 'in_progress')} style={{
-                    flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-                    padding: '10px', borderRadius: 10, background: '#3B82F6', color: '#fff',
-                    fontWeight: 700, fontSize: 13, border: 'none', cursor: 'pointer',
-                  }}>
-                    <Play size={14} strokeWidth={2.5} /> Start Work
+                  <button onClick={() => handleMarkArrived(b.id)} style={{
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                    padding: '11px', borderRadius: 10, background: '#3B82F6', color: '#fff',
+                    fontWeight: 700, fontSize: 13, border: 'none', cursor: 'pointer', transition: 'background 0.15s',
+                  }}
+                    onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = '#2563EB'; }}
+                    onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = '#3B82F6'; }}
+                  >
+                    <Truck size={14} strokeWidth={2} /> Mark Arrived at Site
                   </button>
                 )}
+
+                {b.status === 'arrived' && (
+                  <div style={{ background: '#FFF3E0', borderRadius: 12, border: '1.5px solid rgba(255,140,0,0.3)', padding: '14px 16px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 10 }}>
+                      <KeyRound size={14} color="#FF8C00" strokeWidth={1.5} />
+                      <span style={{ fontSize: 13, fontWeight: 700, color: '#E07B00' }}>Enter OTP from Customer</span>
+                    </div>
+                    <p style={{ fontSize: 12, color: '#92400E', marginBottom: 12 }}>
+                      Customer received a 4-digit OTP on their app. Ask them to share it to start work.
+                    </p>
+                    <div style={{ display: 'flex', gap: 10 }}>
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        maxLength={4}
+                        value={otpInputs[b.id] || ''}
+                        onChange={e => {
+                          const val = e.target.value.replace(/\D/g, '').slice(0, 4);
+                          setOtpInputs(prev => ({ ...prev, [b.id]: val }));
+                        }}
+                        placeholder="_ _ _ _"
+                        style={{
+                          flex: 1, padding: '10px 16px', border: '2px solid #FFB74D',
+                          borderRadius: 10, fontSize: 20, fontWeight: 800, letterSpacing: '0.2em',
+                          textAlign: 'center', color: '#1A1D26', background: '#fff', outline: 'none',
+                        }}
+                      />
+                      <button
+                        onClick={() => handleVerifyOtp(b.id)}
+                        disabled={otpLoading[b.id] || (otpInputs[b.id] || '').length < 4}
+                        style={{
+                          padding: '10px 20px', borderRadius: 10, background: '#FF8C00', color: '#fff',
+                          fontWeight: 800, fontSize: 13, border: 'none', cursor: 'pointer',
+                          opacity: (otpInputs[b.id] || '').length < 4 ? 0.6 : 1, transition: 'all 0.15s',
+                          display: 'flex', alignItems: 'center', gap: 6, whiteSpace: 'nowrap',
+                        }}
+                      >
+                        {otpLoading[b.id]
+                          ? <span className="spin" style={{ width: 14, height: 14, border: '2px solid rgba(255,255,255,0.3)', borderTopColor: '#fff', borderRadius: '50%', display: 'inline-block' }} />
+                          : <Check size={14} strokeWidth={2.5} />
+                        }
+                        Start Work
+                      </button>
+                    </div>
+                  </div>
+                )}
+
                 {b.status === 'in_progress' && (
-                  <button onClick={() => updateStatus(b.id, 'completed')} style={{
-                    flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-                    padding: '10px', borderRadius: 10, background: '#FF8C00', color: '#fff',
-                    fontWeight: 700, fontSize: 13, border: 'none', cursor: 'pointer',
-                  }}>
-                    <Flag size={14} strokeWidth={2.5} /> Mark Complete
+                  <button onClick={() => handleUpdateStatus(b.id, 'completed')} style={{
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                    padding: '11px', borderRadius: 10, background: '#FF8C00', color: '#fff',
+                    fontWeight: 700, fontSize: 13, border: 'none', cursor: 'pointer', transition: 'background 0.15s',
+                  }}
+                    onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = '#E07B00'; }}
+                    onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = '#FF8C00'; }}
+                  >
+                    <Flag size={14} strokeWidth={2.5} /> Mark Job Complete
                   </button>
                 )}
               </div>

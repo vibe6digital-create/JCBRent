@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../../config/theme.dart';
 import '../../services/storage_service.dart';
+import '../../services/api_service.dart';
 import '../auth/login_screen.dart';
 import '../onboarding/onboarding_screen.dart';
+import '../home/home_screen.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -21,6 +24,23 @@ class _SplashScreenState extends State<SplashScreen> {
   Future<void> _navigate() async {
     await Future.delayed(const Duration(seconds: 2));
     if (!mounted) return;
+
+    // Restore Firebase session if user was previously logged in
+    final firebaseUser = FirebaseAuth.instance.currentUser;
+    if (firebaseUser != null) {
+      try {
+        final token = await firebaseUser.getIdToken();
+        ApiService().setToken(token);
+        if (!mounted) return;
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => const HomeScreen()),
+        );
+        return;
+      } catch (_) {
+        // Token refresh failed — fall through to login
+      }
+    }
 
     final tourSeen = await StorageService.isTourSeen();
     if (!mounted) return;

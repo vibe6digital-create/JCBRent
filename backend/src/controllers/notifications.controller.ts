@@ -2,14 +2,27 @@ import { Response } from 'express';
 import { db, Timestamp } from '../config/firebase';
 import { AuthRequest } from '../middleware/auth';
 
+function serializeNotif(data: any): any {
+  const result = { ...data };
+  if (result.createdAt && typeof result.createdAt === 'object' && '_seconds' in result.createdAt) {
+    result.createdAt = new Date(result.createdAt._seconds * 1000).toISOString();
+  } else if (result.createdAt?.toDate) {
+    result.createdAt = result.createdAt.toDate().toISOString();
+  }
+  return result;
+}
+
 export const getNotifications = async (req: AuthRequest, res: Response) => {
   try {
     const snapshot = await db.collection('notifications')
       .where('userId', '==', req.user!.uid)
-      .orderBy('createdAt', 'desc')
       .limit(50)
       .get();
-    res.json({ notifications: snapshot.docs.map(d => d.data()) });
+    const notifications = snapshot.docs
+      .map(d => d.data())
+      .sort((a, b) => (b.createdAt?._seconds ?? 0) - (a.createdAt?._seconds ?? 0))
+      .map(serializeNotif);
+    res.json({ notifications });
   } catch {
     res.status(500).json({ error: 'Failed to fetch notifications' });
   }

@@ -1,6 +1,6 @@
-import React, { createContext, useContext, useState, useEffect, useRef, ReactNode } from 'react';
-import { onAuthStateChanged, ConfirmationResult, signOut } from 'firebase/auth';
-import { auth, RecaptchaVerifier, signInWithPhoneNumber } from '../config/firebase';
+import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { onAuthStateChanged, signOut, signInWithEmailAndPassword } from 'firebase/auth';
+import { auth } from '../config/firebase';
 
 interface AdminUser {
   uid: string;
@@ -13,8 +13,7 @@ interface AuthContextType {
   admin: AdminUser | null;
   isAuthenticated: boolean;
   loading: boolean;
-  sendOTP: (phone: string, recaptchaContainerId: string) => Promise<void>;
-  verifyOTP: (otp: string) => Promise<void>;
+  loginWithEmail: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
 }
 
@@ -27,8 +26,6 @@ const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [admin, setAdmin] = useState<AdminUser | null>(null);
   const [loading, setLoading] = useState(true);
-  const confirmationResultRef = useRef<ConfirmationResult | null>(null);
-  const recaptchaVerifierRef = useRef<RecaptchaVerifier | null>(null);
 
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, async (firebaseUser) => {
@@ -43,7 +40,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             if (data.user?.role === 'admin') {
               setAdmin(data.user);
             } else {
-              // Not an admin — sign out
               await signOut(auth);
               setAdmin(null);
             }
@@ -61,34 +57,15 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     return () => unsub();
   }, []);
 
-  const sendOTP = async (phone: string, recaptchaContainerId: string) => {
-    if (recaptchaVerifierRef.current) {
-      recaptchaVerifierRef.current.clear();
-      recaptchaVerifierRef.current = null;
-    }
-
-    const verifier = new RecaptchaVerifier(auth, recaptchaContainerId, {
-      size: 'invisible',
-      callback: () => {},
-    });
-    recaptchaVerifierRef.current = verifier;
-
-    const formattedPhone = phone.startsWith('+91') ? phone : `+91${phone}`;
-    const result = await signInWithPhoneNumber(auth, formattedPhone, verifier);
-    confirmationResultRef.current = result;
-  };
-
-  const verifyOTP = async (otp: string) => {
-    if (!confirmationResultRef.current) throw new Error('No OTP session. Request OTP again.');
-
-    const result = await confirmationResultRef.current.confirm(otp);
+  const loginWithEmail = async (email: string, password: string) => {
+    const result = await signInWithEmailAndPassword(auth, email, password);
     const token = await result.user.getIdToken();
 
     const res = await fetch(`${API_URL}/auth/profile`, {
       headers: { Authorization: `Bearer ${token}` },
     });
 
-    if (!res.ok) throw new Error('Failed to fetch profile');
+    if (!res.ok) throw new Error('Profile not found. Make sure this account has admin role.');
 
     const data = await res.json();
     if (data.user?.role !== 'admin') {
@@ -109,8 +86,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       admin,
       isAuthenticated: !!admin,
       loading,
-      sendOTP,
-      verifyOTP,
+      loginWithEmail,
       logout,
     }}>
       {children}

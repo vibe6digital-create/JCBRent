@@ -219,7 +219,7 @@ export default function Categories() {
               ) : (
                 <>
                   <div style={{ fontSize: 15, fontWeight: 700, color: '#1A1D26' }}>{cat.name}</div>
-                  <div style={{ fontSize: 11, color: '#9CA3AF', marginTop: 2 }}>Added {cat.createdAt}</div>
+                  <div style={{ fontSize: 11, color: '#9CA3AF', marginTop: 2 }}>Added {cat.createdAt ? new Date(typeof cat.createdAt === 'object' ? (cat.createdAt as any)._seconds * 1000 : cat.createdAt).toLocaleDateString() : '—'}</div>
                 </>
               )}
             </div>

@@ -1,9 +1,9 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../../context/AuthContext';
-import { Phone, Mail, MapPin, Truck, Star, CheckCircle, LogOut, Wifi, WifiOff } from 'lucide-react';
-import { mockVendorBookings, VENDOR_EARNINGS } from '../../../data/mockData';
-import { toggleVendorOnline } from '../../../services/api';
+import { Phone, Mail, MapPin, Truck, Star, CheckCircle, LogOut, Wifi, WifiOff, Edit2 } from 'lucide-react';
+import { getVendorBookings, getVendorEarnings, toggleVendorOnline } from '../../../services/api';
+import type { Booking } from '../../../types';
 import toast from 'react-hot-toast';
 
 export default function VendorProfile() {
@@ -12,8 +12,20 @@ export default function VendorProfile() {
   const [isOnline, setIsOnline] = useState(user?.isOnline ?? true);
   const [togglingOnline, setTogglingOnline] = useState(false);
 
+  const [bookings, setBookings] = useState<Booking[]>([]);
+  const [earnings, setEarnings] = useState<{ total: number; thisMonth: number; month: number } | null>(null);
+
+  useEffect(() => {
+    getVendorBookings()
+      .then((res: any) => setBookings(res.bookings || []))
+      .catch(() => setBookings([]));
+    getVendorEarnings()
+      .then((res: any) => setEarnings(res.earnings || null))
+      .catch(() => setEarnings(null));
+  }, []);
+
   const avgRating = (() => {
-    const rated = mockVendorBookings.filter(b => b.rating);
+    const rated = bookings.filter(b => b.rating);
     if (!rated.length) return 0;
     return (rated.reduce((s, b) => s + (b.rating || 0), 0) / rated.length).toFixed(1);
   })();
@@ -74,7 +86,21 @@ export default function VendorProfile() {
           </div>
         </button>
 
-        <div style={{ position: 'relative', display: 'flex', gap: 20, alignItems: 'center', marginBottom: 20 }}>
+        {/* Edit button */}
+        <button onClick={() => navigate('/vendor/profile/edit')} style={{
+          position: 'absolute', top: 18, left: 18,
+          display: 'flex', alignItems: 'center', gap: 5,
+          padding: '6px 12px', borderRadius: 8, border: 'none', cursor: 'pointer',
+          background: 'rgba(255,255,255,0.08)', color: '#9CA3AF', fontWeight: 700, fontSize: 12,
+          transition: 'background 0.15s',
+        }}
+          onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.14)'; }}
+          onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.08)'; }}
+        >
+          <Edit2 size={12} strokeWidth={1.5} /> Edit
+        </button>
+
+        <div style={{ position: 'relative', display: 'flex', gap: 20, alignItems: 'center', marginBottom: 20, marginTop: 32 }}>
           <div style={{
             width: 72, height: 72, borderRadius: '50%',
             background: 'linear-gradient(135deg, #FF8C00, #FFAD33)',
@@ -95,9 +121,9 @@ export default function VendorProfile() {
 
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
           {[
-            { icon: Truck, label: 'Machines', value: 2 },
+            { icon: Truck, label: 'Machines', value: '—' },
             { icon: Star, label: 'Avg Rating', value: avgRating || '—' },
-            { icon: CheckCircle, label: 'Completed', value: mockVendorBookings.filter(b => b.status === 'completed').length },
+            { icon: CheckCircle, label: 'Completed', value: bookings.filter(b => b.status === 'completed').length },
           ].map(s => (
             <div key={s.label} style={{ background: 'rgba(255,255,255,0.06)', borderRadius: 10, padding: '14px', textAlign: 'center' }}>
               <s.icon size={18} color="#FF8C00" strokeWidth={1.5} style={{ margin: '0 auto 6px' }} />
@@ -154,9 +180,9 @@ export default function VendorProfile() {
       <div style={{ background: '#1A1A2E', borderRadius: 14, padding: '18px 22px' }}>
         <div style={{ color: '#9CA3AF', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 12 }}>Earnings Summary</div>
         {[
-          { label: 'Total Earnings', value: `₹${VENDOR_EARNINGS.total.toLocaleString('en-IN')}`, color: '#FF8C00' },
-          { label: 'This Month', value: `₹${VENDOR_EARNINGS.thisMonth.toLocaleString('en-IN')}`, color: '#43A047' },
-          { label: 'This Week', value: `₹${VENDOR_EARNINGS.thisWeek.toLocaleString('en-IN')}`, color: '#3B82F6' },
+          { label: 'Total Earnings', value: `₹${(earnings?.total || 0).toLocaleString('en-IN')}`, color: '#FF8C00' },
+          { label: 'This Month', value: `₹${(earnings?.thisMonth || earnings?.month || 0).toLocaleString('en-IN')}`, color: '#43A047' },
+          { label: 'This Week', value: `₹0`, color: '#3B82F6' },
         ].map(e => (
           <div key={e.label} style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
             <span style={{ color: '#6B7280', fontSize: 13 }}>{e.label}</span>

@@ -5,6 +5,23 @@ import { getBookings } from '../../services/api';
 import type { Booking, BookingStatus } from '../../types';
 import toast from 'react-hot-toast';
 
+function formatDate(val: any): string {
+  if (!val) return '—';
+  if (typeof val === 'string') return new Date(val).toLocaleDateString('en-IN');
+  if (typeof val === 'object' && val._seconds) return new Date(val._seconds * 1000).toLocaleDateString('en-IN');
+  return '—';
+}
+
+function getCity(workLocation: any): string {
+  if (!workLocation) return '—';
+  return workLocation.city || workLocation.address?.split(',').pop()?.trim() || '—';
+}
+
+function getAddress(workLocation: any): string {
+  if (!workLocation) return '';
+  return workLocation.address || '';
+}
+
 type FilterStatus = 'all' | BookingStatus;
 
 export default function Bookings() {
@@ -30,7 +47,7 @@ export default function Bookings() {
     const matchesSearch =
       (b.customerName || '').toLowerCase().includes(search.toLowerCase()) ||
       b.machineModel.toLowerCase().includes(search.toLowerCase()) ||
-      b.workLocation.city.toLowerCase().includes(search.toLowerCase()) ||
+      getCity(b.workLocation).toLowerCase().includes(search.toLowerCase()) ||
       (b.vendorName || '').toLowerCase().includes(search.toLowerCase());
     const matchesStatus = statusFilter === 'all' || b.status === statusFilter;
     return matchesSearch && matchesStatus;
@@ -133,16 +150,16 @@ export default function Bookings() {
                   <td style={{ padding: '14px 16px' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 12, color: '#6B7280' }}>
                       <Calendar size={11} strokeWidth={1.5} />
-                      {b.startDate}
+                      {formatDate(b.startDate)}
                     </div>
-                    <div style={{ fontSize: 11, color: '#9CA3AF', marginLeft: 15 }}>→ {b.endDate}</div>
+                    <div style={{ fontSize: 11, color: '#9CA3AF', marginLeft: 15 }}>→ {formatDate(b.endDate)}</div>
                   </td>
                   <td style={{ padding: '14px 16px' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 12, color: '#6B7280' }}>
                       <MapPin size={11} strokeWidth={1.5} />
-                      {b.workLocation.city}
+                      {getCity(b.workLocation)}
                     </div>
-                    <div style={{ fontSize: 11, color: '#9CA3AF', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 140, whiteSpace: 'nowrap' }}>{b.workLocation.address}</div>
+                    <div style={{ fontSize: 11, color: '#9CA3AF', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 140, whiteSpace: 'nowrap' }}>{getAddress(b.workLocation)}</div>
                   </td>
                   <td style={{ padding: '14px 16px' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 2, fontSize: 13, fontWeight: 700, color: '#1A1D26' }}>

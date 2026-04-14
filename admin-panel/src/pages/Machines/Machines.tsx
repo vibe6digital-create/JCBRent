@@ -298,7 +298,7 @@ export default function Machines() {
                 </button>
               )}
 
-              <div style={{ fontSize: 11, color: '#9CA3AF', textAlign: 'right' }}>Added {m.createdAt}</div>
+              <div style={{ fontSize: 11, color: '#9CA3AF', textAlign: 'right' }}>Added {(m.createdAt as any)?._seconds ? new Date((m.createdAt as any)._seconds * 1000).toLocaleDateString('en-IN') : '—'}</div>
             </div>
           </div>
         ))}

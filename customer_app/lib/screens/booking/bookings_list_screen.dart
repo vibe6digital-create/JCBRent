@@ -37,7 +37,7 @@ class _BookingsListScreenState extends State<BookingsListScreen> with SingleTick
 
   List<Booking> get _filteredBookings {
     switch (_tabController.index) {
-      case 1: return _bookings.where((b) => ['pending', 'accepted', 'in_progress'].contains(b.status)).toList();
+      case 1: return _bookings.where((b) => ['pending', 'accepted', 'arrived', 'in_progress'].contains(b.status)).toList();
       case 2: return _bookings.where((b) => ['completed', 'rejected'].contains(b.status)).toList();
       default: return _bookings;
     }
@@ -169,6 +169,22 @@ class _BookingCard extends StatelessWidget {
                     style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: AppTheme.secondaryColor)),
                 ],
               ),
+              if (booking.status == 'arrived') ...[
+                const SizedBox(height: 10),
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    onPressed: onTap,
+                    icon: const Icon(Icons.lock_open_rounded, size: 18),
+                    label: const Text('View OTP'),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: Colors.teal,
+                      side: const BorderSide(color: Colors.teal),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    ),
+                  ),
+                ),
+              ],
               if (booking.status == 'in_progress') ...[
                 const SizedBox(height: 10),
                 SizedBox(
@@ -198,6 +214,7 @@ class _BookingCard extends StatelessWidget {
       case 'rejected': return AppTheme.errorColor;
       case 'completed': return Colors.blue;
       case 'in_progress': return Colors.purple;
+      case 'arrived': return Colors.teal;
       default: return Colors.orange;
     }
   }
@@ -208,6 +225,7 @@ class _BookingCard extends StatelessWidget {
       case 'rejected': return Icons.cancel_outlined;
       case 'completed': return Icons.done_all;
       case 'in_progress': return Icons.local_shipping;
+      case 'arrived': return Icons.location_on;
       default: return Icons.hourglass_empty;
     }
   }
@@ -226,6 +244,7 @@ class _StatusBadge extends StatelessWidget {
       case 'rejected': color = AppTheme.errorColor;
       case 'completed': color = Colors.blue;
       case 'in_progress': color = Colors.purple;
+      case 'arrived': color = Colors.teal;
       default: color = Colors.orange;
     }
 

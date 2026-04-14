@@ -163,10 +163,15 @@ class _OTPScreenState extends State<OTPScreen> {
       final success = await _authService.verifyOTP(widget.verificationId, _otpController.text.trim());
       if (!success) throw Exception('Verification failed');
 
-      // Register vendor profile if first login
+      // Register vendor profile if first login, otherwise just get profile
       try {
         await _authService.getProfile();
-      } catch (_) {}
+      } catch (_) {
+        // Profile not found — register as new vendor
+        try {
+          await _authService.registerVendor(name: 'Vendor');
+        } catch (_) {}
+      }
 
       if (mounted) {
         Navigator.pushAndRemoveUntil(

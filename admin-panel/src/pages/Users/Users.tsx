@@ -27,8 +27,8 @@ export default function Users() {
   }, []);
 
   const filtered = users.filter(u => {
-    const matchesSearch = u.name.toLowerCase().includes(search.toLowerCase()) ||
-      u.phone.includes(search) ||
+    const matchesSearch = (u.name ?? '').toLowerCase().includes(search.toLowerCase()) ||
+      (u.phone ?? '').includes(search) ||
       (u.city?.toLowerCase().includes(search.toLowerCase()) ?? false);
     const matchesRole = roleFilter === 'all' || u.role === roleFilter;
     return matchesSearch && matchesRole;
@@ -137,7 +137,7 @@ export default function Users() {
                         fontSize: 14,
                         flexShrink: 0,
                       }}>
-                        {user.name.charAt(0).toUpperCase()}
+                        {(user.name || user.email || '?').charAt(0).toUpperCase()}
                       </div>
                       <div>
                         <div style={{ fontSize: 13, fontWeight: 600, color: '#1A1D26' }}>{user.name}</div>
@@ -161,7 +161,9 @@ export default function Users() {
                   </td>
                   <td style={{ padding: '14px 16px' }}><Badge status={user.role} /></td>
                   <td style={{ padding: '14px 16px' }}><Badge status={user.isActive ? 'active' : 'inactive'} /></td>
-                  <td style={{ padding: '14px 16px', fontSize: 13, color: '#6B7280' }}>{user.createdAt}</td>
+                  <td style={{ padding: '14px 16px', fontSize: 13, color: '#6B7280' }}>
+                    {(user.createdAt as any)?._seconds ? new Date((user.createdAt as any)._seconds * 1000).toLocaleDateString('en-IN') : '—'}
+                  </td>
                   <td style={{ padding: '14px 16px' }}>
                     <button
                       onClick={() => toggle(user.uid, user.isActive)}

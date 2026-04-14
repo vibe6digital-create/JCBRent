@@ -2,12 +2,15 @@
   "name": "heavyrent-backend",
   "version": "1.0.0",
   "description": "Heavy Equipment Rental Platform - Backend API",
-  "main": "dist/index.js",
+  "main": "dist/functions.js",
   "scripts": {
     "dev": "ts-node-dev --respawn src/index.ts",
     "build": "tsc",
     "start": "node dist/index.js",
-    "setup-firebase": "ts-node scripts/setup-firebase.ts"
+    "serve": "npm run build && firebase emulators:start --only functions"
+  },
+  "engines": {
+    "node": "20"
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.1",
@@ -16,6 +19,7 @@
     "express": "^4.21.0",
     "express-validator": "^7.0.1",
     "firebase-admin": "^12.6.0",
+    "firebase-functions": "^4.9.0",
     "helmet": "^7.1.0",
     "multer": "^1.4.5-lts.1",
     "uuid": "^10.0.0"

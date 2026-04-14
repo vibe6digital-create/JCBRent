@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../config/theme.dart';
 import '../../services/auth_service.dart';
+import '../../services/api_service.dart';
 import '../auth/login_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
@@ -105,13 +106,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             boxShadow: [AppTheme.accentGlow],
                           ),
                           child: ElevatedButton.icon(
-                            onPressed: () {
-                              ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                                content: const Text('Profile editing coming soon'),
-                                behavior: SnackBarBehavior.floating,
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                              ));
-                            },
+                            onPressed: () => _showEditProfileDialog(context),
                             icon: const Icon(Icons.edit_rounded, size: 20),
                             label: const Text('Edit Profile', style: TextStyle(fontWeight: FontWeight.w700)),
                             style: ElevatedButton.styleFrom(
@@ -145,6 +140,107 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ),
       ),
     );
+  }
+
+  void _showEditProfileDialog(BuildContext context) {
+    final nameCtrl = TextEditingController(text: _get('name'));
+    final emailCtrl = TextEditingController(text: _get('email'));
+    final cityCtrl = TextEditingController(text: _get('city'));
+    final stateCtrl = TextEditingController(text: _get('state'));
+    bool isSaving = false;
+
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) => AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: const Text('Edit Profile', style: TextStyle(fontWeight: FontWeight.w700)),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: nameCtrl,
+                  decoration: const InputDecoration(labelText: 'Full Name *', prefixIcon: Icon(Icons.person_rounded)),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: emailCtrl,
+                  keyboardType: TextInputType.emailAddress,
+                  decoration: const InputDecoration(labelText: 'Email', prefixIcon: Icon(Icons.email_rounded)),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: cityCtrl,
+                  decoration: const InputDecoration(labelText: 'City', prefixIcon: Icon(Icons.location_city_rounded)),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: stateCtrl,
+                  decoration: const InputDecoration(labelText: 'State', prefixIcon: Icon(Icons.map_rounded)),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: isSaving ? null : () => Navigator.pop(ctx),
+              child: const Text('Cancel', style: TextStyle(color: AppTheme.textSecondary)),
+            ),
+            ElevatedButton(
+              onPressed: isSaving
+                  ? null
+                  : () async {
+                      final name = nameCtrl.text.trim();
+                      if (name.isEmpty) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Name is required')));
+                        return;
+                      }
+                      setDialogState(() => isSaving = true);
+                      try {
+                        await ApiService().patch('/auth/profile', body: {
+                          'name': name,
+                          if (emailCtrl.text.trim().isNotEmpty) 'email': emailCtrl.text.trim(),
+                          if (cityCtrl.text.trim().isNotEmpty) 'city': cityCtrl.text.trim(),
+                          if (stateCtrl.text.trim().isNotEmpty) 'state': stateCtrl.text.trim(),
+                        });
+                        if (mounted) {
+                          Navigator.pop(ctx);
+                          _loadProfile();
+                          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                            content: Text('Profile updated!'),
+                            backgroundColor: AppTheme.successColor,
+                            behavior: SnackBarBehavior.floating,
+                          ));
+                        }
+                      } catch (e) {
+                        setDialogState(() => isSaving = false);
+                        if (mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                            content: Text(e.toString().replaceFirst('Exception: ', '')),
+                            backgroundColor: AppTheme.errorColor,
+                          ));
+                        }
+                      }
+                    },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppTheme.accentColor,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              ),
+              child: isSaving
+                  ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                  : const Text('Save'),
+            ),
+          ],
+        ),
+      ),
+    ).then((_) {
+      nameCtrl.dispose();
+      emailCtrl.dispose();
+      cityCtrl.dispose();
+      stateCtrl.dispose();
+    });
   }
 
   void _showSignOutDialog(BuildContext context) {

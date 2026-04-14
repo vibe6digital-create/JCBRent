@@ -27,7 +27,7 @@ class AuthService {
         if (token != null) _api.setToken(token);
       },
       verificationFailed: (FirebaseAuthException e) {
-        onFailed(e.message ?? 'Verification failed');
+        onFailed('[${e.code}] ${e.message ?? 'Verification failed'}');
       },
       codeSent: (String verificationId, int? resendToken) {
         onCodeSent(verificationId);

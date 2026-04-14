@@ -6,6 +6,11 @@
 *.key
 service-account*.json
 serviceAccount*.json
+*firebase-adminsdk*.json
+rentzoo-*.json
+
+# ─── Claude Code internal ─────────────────────────────────────────────────────
+.claude/
 
 # ─── Node / Web ──────────────────────────────────────────────────────────────
 node_modules/

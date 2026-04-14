@@ -1,9 +1,13 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, ArrowRight, Check, Calendar, MapPin, Clock, IndianRupee, Tag, AlertCircle } from 'lucide-react';
-import { mockMachines, MACHINE_ICONS } from '../../../data/mockData';
-import { createBooking, validateCoupon } from '../../../services/api';
+import { getMachineById, createBooking, validateCoupon } from '../../../services/api';
+import type { Machine } from '../../../types';
 import toast from 'react-hot-toast';
+
+const MACHINE_ICONS: Record<string, string> = {
+  JCB: '🚜', Excavator: '⛏️', Crane: '🏗️', Bulldozer: '🚧', Roller: '🛞', Pokelane: '🛣️',
+};
 
 type Step = 1 | 2 | 3;
 type RateType = 'hourly' | 'daily' | 'weekly' | 'monthly';
@@ -19,7 +23,17 @@ const RATE_LABELS: Record<RateType, string> = {
 export default function CreateBooking() {
   const { machineId } = useParams();
   const navigate = useNavigate();
-  const machine = mockMachines.find(m => m.id === machineId);
+
+  const [machine, setMachine] = useState<Machine | null>(null);
+  const [loadingMachine, setLoadingMachine] = useState(true);
+
+  useEffect(() => {
+    if (!machineId) return;
+    getMachineById(machineId)
+      .then((res: any) => setMachine(res.machine || res))
+      .catch(() => setMachine(null))
+      .finally(() => setLoadingMachine(false));
+  }, [machineId]);
 
   const [step, setStep] = useState<Step>(1);
   const [rateType, setRateType] = useState<RateType>('daily');
@@ -37,6 +51,7 @@ export default function CreateBooking() {
   const [done, setDone] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
+  if (loadingMachine) return <div style={{ textAlign: 'center', padding: 40 }}>Loading...</div>;
   if (!machine) return <div style={{ padding: 40, textAlign: 'center', color: '#9CA3AF' }}>Machine not found</div>;
 
   const calcUnits = () => {

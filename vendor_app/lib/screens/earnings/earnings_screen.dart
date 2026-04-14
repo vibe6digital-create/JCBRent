@@ -65,12 +65,16 @@ class _EarningsScreenState extends State<EarningsScreen> {
   }
 
   Future<void> _loadData() async {
-    final all = await _service.getVendorBookings();
-    if (mounted) {
-      setState(() {
-        _completedBookings = all.where((b) => b.isCompleted).toList();
-        _isLoading = false;
-      });
+    try {
+      final all = await _service.getVendorBookings();
+      if (mounted) {
+        setState(() {
+          _completedBookings = all.where((b) => b.isCompleted).toList();
+          _isLoading = false;
+        });
+      }
+    } catch (_) {
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 

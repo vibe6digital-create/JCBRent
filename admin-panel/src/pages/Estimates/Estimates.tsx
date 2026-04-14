@@ -105,7 +105,7 @@ export default function Estimates() {
                 </div>
                 <div style={{ textAlign: 'right' }}>
                   <div style={{ fontSize: 11, color: '#9CA3AF', marginBottom: 2 }}>Date</div>
-                  <div style={{ fontSize: 13, color: '#6B7280' }}>{e.createdAt}</div>
+                  <div style={{ fontSize: 13, color: '#6B7280' }}>{(e.createdAt as any)?._seconds ? new Date((e.createdAt as any)._seconds * 1000).toLocaleDateString('en-IN') : '—'}</div>
                 </div>
               </div>
 

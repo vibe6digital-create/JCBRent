@@ -23,8 +23,12 @@ class _MachinesListScreenState extends State<MachinesListScreen> {
   }
 
   Future<void> _loadMachines() async {
-    final machines = await _service.getMyMachines();
-    if (mounted) setState(() { _machines = machines; _isLoading = false; });
+    try {
+      final machines = await _service.getMyMachines();
+      if (mounted) setState(() { _machines = machines; _isLoading = false; });
+    } catch (_) {
+      if (mounted) setState(() => _isLoading = false);
+    }
   }
 
   IconData _categoryIcon(String category) {
@@ -68,7 +72,44 @@ class _MachinesListScreenState extends State<MachinesListScreen> {
         : RefreshIndicator(
             color: AppTheme.accentColor,
             onRefresh: _loadMachines,
-            child: ListView.builder(
+            child: _machines.isEmpty
+              ? Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Container(
+                        width: 80, height: 80,
+                        decoration: BoxDecoration(
+                          color: AppTheme.accentColor.withAlpha(20),
+                          borderRadius: BorderRadius.circular(24),
+                        ),
+                        child: const Icon(Icons.construction_rounded, size: 40, color: AppTheme.accentColor),
+                      ),
+                      const SizedBox(height: 18),
+                      const Text('No machines yet', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600, color: AppTheme.textPrimary)),
+                      const SizedBox(height: 8),
+                      const Text('Add your first machine to start accepting bookings',
+                        style: TextStyle(color: AppTheme.textSecondary, fontSize: 14),
+                        textAlign: TextAlign.center),
+                      const SizedBox(height: 24),
+                      ElevatedButton.icon(
+                        onPressed: () async {
+                          final result = await Navigator.push(context,
+                            MaterialPageRoute(builder: (_) => const AddEditMachineScreen()));
+                          if (result == true) _loadMachines();
+                        },
+                        icon: const Icon(Icons.add_rounded),
+                        label: const Text('Add Machine'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppTheme.accentColor,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                        ),
+                      ),
+                    ],
+                  ),
+                )
+              : ListView.builder(
               padding: const EdgeInsets.all(16),
               itemCount: _machines.length,
               itemBuilder: (context, index) {

@@ -1,15 +1,30 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, Phone, AlertTriangle } from 'lucide-react';
-import { mockCustomerBookings, MACHINE_ICONS } from '../../../data/mockData';
+import { getBookingById } from '../../../services/api';
+import type { Booking } from '../../../types';
+
+const MACHINE_ICONS: Record<string, string> = {
+  JCB: '🚜', Excavator: '⛏️', Crane: '🏗️', Bulldozer: '🚧', Roller: '🛞', Pokelane: '🛣️',
+};
 
 export default function LiveTracking() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const booking = mockCustomerBookings.find(b => b.id === id);
+
+  const [booking, setBooking] = useState<Booking | null>(null);
+  const [loadingBooking, setLoadingBooking] = useState(true);
   const [progress, setProgress] = useState(35);
   const [arrived, setArrived] = useState(false);
   const [sosActive, setSosActive] = useState(false);
+
+  useEffect(() => {
+    if (!id) return;
+    getBookingById(id)
+      .then((res: any) => setBooking(res.booking || res))
+      .catch(() => setBooking(null))
+      .finally(() => setLoadingBooking(false));
+  }, [id]);
 
   useEffect(() => {
     const t = setInterval(() => {
@@ -21,6 +36,7 @@ export default function LiveTracking() {
     return () => clearInterval(t);
   }, []);
 
+  if (loadingBooking) return <div style={{ textAlign: 'center', padding: 40 }}>Loading...</div>;
   if (!booking) return null;
 
   const eta = Math.max(0, Math.round((100 - progress) * 0.4));
@@ -30,7 +46,6 @@ export default function LiveTracking() {
 
   const handleSOS = () => {
     setSosActive(true);
-    // In production: call emergency API + open native dialer
     window.open('tel:100', '_self');
   };
 

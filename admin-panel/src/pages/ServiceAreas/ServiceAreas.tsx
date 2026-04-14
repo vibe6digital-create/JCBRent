@@ -242,7 +242,7 @@ export default function ServiceAreas() {
                 </span>
               </div>
 
-              <div style={{ fontSize: 12, color: '#9CA3AF', marginRight: 12, whiteSpace: 'nowrap' }}>{area.createdAt}</div>
+              <div style={{ fontSize: 12, color: '#9CA3AF', marginRight: 12, whiteSpace: 'nowrap' }}>{area.createdAt ? new Date(typeof area.createdAt === 'object' ? (area.createdAt as any)._seconds * 1000 : area.createdAt).toLocaleDateString() : '—'}</div>
 
               <div style={{ display: 'flex', gap: 6 }}>
                 {editId !== area.id && (

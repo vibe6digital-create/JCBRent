@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { Wrench, Phone, ArrowRight, ArrowLeft } from 'lucide-react';
@@ -9,7 +9,6 @@ export default function Login() {
   const [phone, setPhone] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const recaptchaRef = useRef<HTMLDivElement>(null);
 
   const role = pendingRole ?? 'customer';
   const isVendor = role === 'vendor';
@@ -20,7 +19,7 @@ export default function Login() {
     setError('');
     setLoading(true);
     try {
-      await sendOTP(digits, 'recaptcha-container');
+      await sendOTP(digits);
       navigate('/otp');
     } catch (e: any) {
       setError(e.message || 'Failed to send OTP. Please try again.');
@@ -109,9 +108,7 @@ export default function Login() {
               border: `2px solid ${error ? '#E53935' : '#E5E7EB'}`,
               borderRadius: 10, background: '#fff', overflow: 'hidden',
               transition: 'border-color 0.15s',
-            }}
-              onFocus={() => {}}
-            >
+            }}>
               <div style={{
                 padding: '12px 14px', background: '#F5F5F5',
                 borderRight: '1px solid #E5E7EB', display: 'flex', alignItems: 'center', gap: 6,
@@ -155,8 +152,6 @@ export default function Login() {
             )}
           </button>
 
-          <div id="recaptcha-container" ref={recaptchaRef} />
-
           <p style={{ textAlign: 'center', fontSize: 12, color: '#9CA3AF', marginTop: 20, lineHeight: 1.6 }}>
             By continuing, you agree to our{' '}
             <span style={{ color: '#FF8C00', cursor: 'pointer' }}>Terms of Service</span>{' '}
@@ -166,14 +161,12 @@ export default function Login() {
 
           <div style={{ textAlign: 'center', marginTop: 24 }}>
             <button
-              onClick={() => { document.getElementById('switch-role')?.click(); }}
+              onClick={() => navigate('/')}
               style={{ background: 'none', border: 'none', fontSize: 13, color: '#9CA3AF', cursor: 'pointer' }}
             >
               {isVendor ? '👷 Switch to Customer Login' : '🏭 Are you a Vendor? Login here'}
             </button>
           </div>
-          {/* Hidden role switch helper */}
-          <button id="switch-role" style={{ display: 'none' }} onClick={() => navigate('/')} />
         </div>
       </div>
     </div>

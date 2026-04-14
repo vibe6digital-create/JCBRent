@@ -40,7 +40,7 @@ class BookingService {
   }
 
   Future<List<Booking>> getMyBookings() async {
-    final response = await _api.get('/bookings');
+    final response = await _api.get('/bookings/customer');
     final List bookings = response['bookings'] ?? response['data'] ?? [];
     return bookings.map((b) => Booking.fromJson(b)).toList();
   }

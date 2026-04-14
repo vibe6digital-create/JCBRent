@@ -66,8 +66,11 @@ export const createMachine = (body: {
   description: string;
   hourlyRate: number;
   dailyRate: number;
+  weeklyRate?: number;
+  monthlyRate?: number;
   location: { city: string; state: string; latitude: number; longitude: number };
   serviceAreas: string[];
+  isAvailable?: boolean;
 }) => request('/machines', { method: 'POST', body: JSON.stringify(body) });
 
 export const updateMachine = (id: string, body: Partial<{
@@ -75,7 +78,10 @@ export const updateMachine = (id: string, body: Partial<{
   description: string;
   hourlyRate: number;
   dailyRate: number;
+  weeklyRate: number;
+  monthlyRate: number;
   serviceAreas: string[];
+  isAvailable: boolean;
 }>) => request(`/machines/${id}`, { method: 'PUT', body: JSON.stringify(body) });
 
 export const deleteMachine = (id: string) =>
@@ -99,24 +105,30 @@ export const createBooking = (body: {
 }) => request('/bookings', { method: 'POST', body: JSON.stringify(body) });
 
 export const getCustomerBookings = () =>
-  request('/bookings');
+  request('/bookings/customer');
 
 export const getBookingById = (id: string) =>
   request(`/bookings/${id}`);
 
-export const rateBooking = (id: string, body: { rating: number; review?: string }) =>
-  request(`/bookings/${id}/rate`, { method: 'PATCH', body: JSON.stringify(body) });
-
 // ─── Bookings (vendor) ────────────────────────────────────────────────────────
 
 export const getVendorBookings = () =>
-  request('/bookings');
+  request('/bookings/vendor');
 
 export const updateBookingStatus = (id: string, status: string) =>
   request(`/bookings/${id}/status`, { method: 'PATCH', body: JSON.stringify({ status }) });
 
 export const getVendorEarnings = () =>
   request('/bookings/vendor/earnings');
+
+export const markArrived = (id: string) =>
+  request(`/bookings/${id}/arrive`, { method: 'PATCH' });
+
+export const verifyStartOtp = (id: string, otp: string) =>
+  request(`/bookings/${id}/verify-otp`, { method: 'PATCH', body: JSON.stringify({ otp }) });
+
+export const rateBooking = (id: string, body: { rating: number; review?: string }) =>
+  request(`/bookings/${id}/rate`, { method: 'PATCH', body: JSON.stringify(body) });
 
 // ─── Estimates ────────────────────────────────────────────────────────────────
 

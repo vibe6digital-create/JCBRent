@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../config/theme.dart';
 import '../../services/storage_service.dart';
+import '../../services/auth_service.dart';
 import '../booking/bookings_list_screen.dart';
 import '../estimate/my_estimates_screen.dart';
 import '../notifications/notifications_screen.dart';
@@ -18,6 +19,7 @@ class ProfileScreen extends StatefulWidget {
 class _ProfileScreenState extends State<ProfileScreen> {
   Map<String, String> _profile = {};
   bool _isLoading = true;
+  final _authService = AuthService();
 
   @override
   void initState() {
@@ -26,8 +28,35 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Future<void> _loadProfile() async {
-    final profile = await StorageService.getUserProfile();
-    if (mounted) setState(() { _profile = profile; _isLoading = false; });
+    // Load from local storage first (fast)
+    final local = await StorageService.getUserProfile();
+    if (mounted && local['name']!.isNotEmpty) {
+      setState(() { _profile = local; _isLoading = false; });
+    }
+
+    // Always fetch fresh from API
+    try {
+      final response = await _authService.getProfile();
+      final user = response['user'] ?? response;
+      final fresh = {
+        'name':  user['name']?.toString() ?? '',
+        'phone': user['phone']?.toString() ?? '',
+        'email': user['email']?.toString() ?? '',
+        'city':  user['city']?.toString() ?? '',
+        'state': user['state']?.toString() ?? '',
+      };
+      // Save to local storage for next time
+      await StorageService.saveUserProfile(
+        name:  fresh['name']!,
+        phone: fresh['phone']!,
+        email: fresh['email']!,
+        city:  fresh['city']!,
+        state: fresh['state']!,
+      );
+      if (mounted) setState(() { _profile = fresh; _isLoading = false; });
+    } catch (_) {
+      if (mounted) setState(() => _isLoading = false);
+    }
   }
 
   @override

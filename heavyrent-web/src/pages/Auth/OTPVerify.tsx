@@ -4,7 +4,7 @@ import { useAuth } from '../../context/AuthContext';
 import { Wrench, ArrowLeft, ShieldCheck } from 'lucide-react';
 
 export default function OTPVerify() {
-  const { pendingRole, pendingPhone, verifyOTP } = useAuth();
+  const { pendingRole, pendingPhone, verifyOTP, sendOTP } = useAuth();
   const navigate = useNavigate();
   const [otp, setOtp] = useState(['', '', '', '', '', '']);
   const [loading, setLoading] = useState(false);
@@ -44,8 +44,13 @@ export default function OTPVerify() {
     setLoading(true);
     setError('');
     try {
-      await verifyOTP(entered);
-      navigate(role === 'vendor' ? '/vendor/home' : '/customer/home');
+      const loggedInUser = await verifyOTP(entered);
+      // New user (no name set) → profile setup, returning user → home
+      if (!loggedInUser?.name) {
+        navigate('/profile-setup', { replace: true });
+      } else {
+        navigate(role === 'vendor' ? '/vendor/home' : '/customer/home', { replace: true });
+      }
     } catch (e: any) {
       setError(e.message || 'Invalid OTP. Please try again.');
       setLoading(false);
@@ -138,7 +143,18 @@ export default function OTPVerify() {
             {countdown > 0 ? (
               <p style={{ color: '#9CA3AF', fontSize: 13 }}>Resend OTP in <strong style={{ color: '#FF8C00' }}>{countdown}s</strong></p>
             ) : (
-              <button onClick={() => { setCountdown(30); setOtp(['', '', '', '', '', '']); }}
+              <button
+                onClick={async () => {
+                  try {
+                    await sendOTP(pendingPhone);
+                    setCountdown(60);
+                    setOtp(['', '', '', '', '', '']);
+                    setError('');
+                    inputsRef.current[0]?.focus();
+                  } catch (e: any) {
+                    setError(e.message || 'Failed to resend OTP');
+                  }
+                }}
                 style={{ background: 'none', border: 'none', color: '#FF8C00', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
                 Resend OTP
               </button>

@@ -1,13 +1,16 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Check, Upload } from 'lucide-react';
+import { createMachine } from '../../../services/api';
 import type { MachineCategory } from '../../../types';
+import toast from 'react-hot-toast';
 
 const CATEGORIES: MachineCategory[] = ['JCB', 'Excavator', 'Crane', 'Bulldozer', 'Roller', 'Pokelane'];
 
 export default function AddMachine() {
   const navigate = useNavigate();
   const [saved, setSaved] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [form, setForm] = useState({
     category: '' as MachineCategory | '',
     model: '', description: '', hourlyRate: '', dailyRate: '', weeklyRate: '', monthlyRate: '',
@@ -29,8 +32,28 @@ export default function AddMachine() {
     return Object.keys(e).length === 0;
   };
 
-  const handleSave = () => {
-    if (validate()) setTimeout(() => setSaved(true), 600);
+  const handleSave = async () => {
+    if (!validate()) return;
+    setSaving(true);
+    try {
+      await createMachine({
+        category: form.category as MachineCategory,
+        model: form.model.trim(),
+        description: form.description.trim(),
+        hourlyRate: Number(form.hourlyRate),
+        dailyRate: Number(form.dailyRate),
+        weeklyRate: form.weeklyRate ? Number(form.weeklyRate) : undefined,
+        monthlyRate: form.monthlyRate ? Number(form.monthlyRate) : undefined,
+        location: { city: form.city.trim(), state: form.state.trim(), latitude: 0, longitude: 0 },
+        serviceAreas: form.serviceAreas.split(',').map(s => s.trim()).filter(Boolean),
+        isAvailable: form.isAvailable,
+      });
+      setSaved(true);
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to submit machine');
+    } finally {
+      setSaving(false);
+    }
   };
 
   if (saved) return (
@@ -175,14 +198,18 @@ export default function AddMachine() {
             ))}
           </div>
 
-          <button onClick={handleSave} style={{
-            width: '100%', padding: '14px', borderRadius: 12, background: '#FF8C00',
-            color: '#fff', fontWeight: 800, fontSize: 15, border: 'none', cursor: 'pointer', transition: 'background 0.15s',
+          <button onClick={handleSave} disabled={saving} style={{
+            width: '100%', padding: '14px', borderRadius: 12, background: saving ? '#E07B00' : '#FF8C00',
+            color: '#fff', fontWeight: 800, fontSize: 15, border: 'none', cursor: saving ? 'not-allowed' : 'pointer', transition: 'background 0.15s',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
           }}
-            onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = '#E07B00'; }}
-            onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = '#FF8C00'; }}
+            onMouseEnter={e => { if (!saving) (e.currentTarget as HTMLElement).style.background = '#E07B00'; }}
+            onMouseLeave={e => { if (!saving) (e.currentTarget as HTMLElement).style.background = '#FF8C00'; }}
           >
-            Submit for Approval
+            {saving
+              ? <><span className="spin" style={{ width: 16, height: 16, border: '2px solid rgba(255,255,255,0.3)', borderTopColor: '#fff', borderRadius: '50%', display: 'inline-block' }} /> Submitting...</>
+              : 'Submit for Approval'
+            }
           </button>
           <p style={{ fontSize: 11, color: '#9CA3AF', textAlign: 'center', marginTop: 8 }}>Admin will review and approve within 24 hours</p>
         </div>

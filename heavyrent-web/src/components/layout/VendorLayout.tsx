@@ -1,8 +1,8 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { Wrench, LayoutDashboard, Truck, CalendarCheck, IndianRupee, User, Bell, LogOut, Menu, X } from 'lucide-react';
-import { mockVendorNotifications } from '../../data/mockData';
+import { getNotifications } from '../../services/api';
 
 const NAV = [
   { to: '/vendor/home', icon: LayoutDashboard, label: 'Dashboard' },
@@ -16,8 +16,17 @@ export default function VendorLayout() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const [collapsed, setCollapsed] = useState(false);
-  const unread = mockVendorNotifications.filter(n => !n.isRead).length;
+  const [unread, setUnread] = useState(0);
   const w = collapsed ? 64 : 230;
+
+  useEffect(() => {
+    getNotifications()
+      .then((res: any) => {
+        const notifs = res.notifications || [];
+        setUnread(notifs.filter((n: { isRead: boolean }) => !n.isRead).length);
+      })
+      .catch(() => setUnread(0));
+  }, []);
 
   return (
     <div style={{ display: 'flex', minHeight: '100vh', background: '#F5F5F5' }}>

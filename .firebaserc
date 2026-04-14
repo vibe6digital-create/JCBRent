@@ -1,0 +1,18 @@
+{
+  "projects": {
+    "default": "rentzoo-a39ea"
+  },
+  "targets": {
+    "rentzoo-a39ea": {
+      "hosting": {
+        "customer": [
+          "rentzoo-a39ea"
+        ],
+        "admin": [
+          "rentzoo-a39ea-admin"
+        ]
+      }
+    }
+  },
+  "etags": {}
+}

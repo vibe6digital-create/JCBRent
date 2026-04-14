@@ -1,8 +1,9 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { Wrench, Home, Search, CalendarCheck, ClipboardList, Bell, User, LogOut, ChevronDown, X } from 'lucide-react';
-import { mockCustomerNotifications } from '../../data/mockData';
+import { getNotifications } from '../../services/api';
+import type { Notification } from '../../types';
 
 const NAV = [
   { to: '/customer/home', icon: Home, label: 'Home' },
@@ -16,7 +17,15 @@ export default function CustomerLayout() {
   const navigate = useNavigate();
   const [showProfile, setShowProfile] = useState(false);
   const [showNotif, setShowNotif] = useState(false);
-  const unread = mockCustomerNotifications.filter(n => !n.isRead).length;
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+
+  useEffect(() => {
+    getNotifications()
+      .then((res: any) => setNotifications(res.notifications || []))
+      .catch(() => setNotifications([]));
+  }, []);
+
+  const unread = notifications.filter(n => !n.isRead).length;
 
   const handleLogout = () => { logout(); navigate('/'); };
 
@@ -78,13 +87,16 @@ export default function CustomerLayout() {
                   <span style={{ fontWeight: 700, fontSize: 14, color: '#1A1D26' }}>Notifications</span>
                   <button onClick={() => setShowNotif(false)} style={{ background: 'none', border: 'none', color: '#9CA3AF', cursor: 'pointer', display: 'flex' }}><X size={14} strokeWidth={2} /></button>
                 </div>
-                {mockCustomerNotifications.slice(0, 4).map(n => (
+                {notifications.slice(0, 4).map(n => (
                   <div key={n.id} style={{ padding: '12px 16px', borderBottom: '1px solid #F9FAFB', background: n.isRead ? '#fff' : '#FFFBF0' }}>
                     <div style={{ fontSize: 13, fontWeight: n.isRead ? 400 : 700, color: '#1A1D26', marginBottom: 2 }}>{n.title}</div>
                     <div style={{ fontSize: 12, color: '#6B7280', lineHeight: 1.5 }}>{n.body}</div>
                     <div style={{ fontSize: 11, color: '#9CA3AF', marginTop: 4 }}>{n.createdAt}</div>
                   </div>
                 ))}
+                {notifications.length === 0 && (
+                  <div style={{ padding: '24px 16px', textAlign: 'center', color: '#9CA3AF', fontSize: 13 }}>No notifications</div>
+                )}
                 <div style={{ padding: '10px 16px', textAlign: 'center' }}>
                   <NavLink to="/customer/notifications" onClick={() => setShowNotif(false)} style={{ color: '#FF8C00', fontSize: 13, fontWeight: 600 }}>View all notifications</NavLink>
                 </div>

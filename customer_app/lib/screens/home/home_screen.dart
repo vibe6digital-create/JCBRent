@@ -96,7 +96,17 @@ class _HomeBodyState extends State<_HomeBody> {
   final _searchController = TextEditingController();
   List<Machine> _featuredMachines = [];
   List<Booking> _recentBookings = [];
-  List<String> _categories = [];
+  bool _loading = true;
+
+  // Always-visible categories — shown immediately, no API needed
+  static const _defaultCategories = [
+    {'name': 'JCB',       'icon': Icons.construction},
+    {'name': 'Excavator', 'icon': Icons.precision_manufacturing},
+    {'name': 'Crane',     'icon': Icons.height},
+    {'name': 'Bulldozer', 'icon': Icons.agriculture},
+    {'name': 'Roller',    'icon': Icons.roller_shades},
+    {'name': 'Pokelane',  'icon': Icons.engineering},
+  ];
 
   @override
   void initState() {
@@ -105,22 +115,24 @@ class _HomeBodyState extends State<_HomeBody> {
   }
 
   Future<void> _loadData() async {
-    final results = await Future.wait([
-      _machineService.searchMachines(),
-      _bookingService.getMyBookings(),
-      _machineService.getCategories(),
-    ]);
-    if (mounted) {
-      final machines = results[0] as List<Machine>;
-      final bookings = results[1] as List<Booking>;
-      final categories = results[2] as List<String>;
-      setState(() {
-        _featuredMachines = machines.take(4).toList();
-        final sorted = List<Booking>.from(bookings)
-          ..sort((a, b) => b.startDate.compareTo(a.startDate));
-        _recentBookings = sorted.take(3).toList();
-        _categories = categories;
-      });
+    try {
+      final results = await Future.wait([
+        _machineService.searchMachines(),
+        _bookingService.getMyBookings(),
+      ]);
+      if (mounted) {
+        final machines = results[0] as List<Machine>;
+        final bookings = results[1] as List<Booking>;
+        setState(() {
+          _featuredMachines = machines.take(6).toList();
+          final sorted = List<Booking>.from(bookings)
+            ..sort((a, b) => b.startDate.compareTo(a.startDate));
+          _recentBookings = sorted.take(3).toList();
+          _loading = false;
+        });
+      }
+    } catch (_) {
+      if (mounted) setState(() => _loading = false);
     }
   }
 
@@ -213,70 +225,91 @@ class _HomeBodyState extends State<_HomeBody> {
             ),
             const SizedBox(height: 24),
 
-            // Categories
+            // Categories — always shown, hardcoded
             const Text('Equipment Categories',
               style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
             const SizedBox(height: 12),
-            _categories.isEmpty
-                ? GridView.count(
-                    crossAxisCount: 3,
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    crossAxisSpacing: 12,
-                    mainAxisSpacing: 12,
-                    children: List.generate(6, (_) => Container(
-                      decoration: BoxDecoration(
-                        color: Colors.grey[200],
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    )),
-                  )
-                : GridView.count(
-                    crossAxisCount: 3,
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    crossAxisSpacing: 12,
-                    mainAxisSpacing: 12,
-                    children: _categories.map((cat) => _CategoryCard(
-                      icon: _getCategoryIcon(cat),
-                      label: cat,
-                      onTap: () => _searchCategory(cat),
-                    )).toList(),
-                  ),
+            GridView.count(
+              crossAxisCount: 3,
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              crossAxisSpacing: 12,
+              mainAxisSpacing: 12,
+              children: _defaultCategories.map((cat) => _CategoryCard(
+                icon: cat['icon'] as IconData,
+                label: cat['name'] as String,
+                onTap: () => _searchCategory(cat['name'] as String),
+              )).toList(),
+            ),
             const SizedBox(height: 24),
 
             // Featured Machines
-            if (_featuredMachines.isNotEmpty) ...[
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Text('Featured Machines',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                  TextButton(
-                    onPressed: () {
-                      final homeState = context.findAncestorStateOfType<_HomeScreenState>();
-                      homeState?.setState(() => homeState._currentIndex = 1);
-                    },
-                    child: const Text('View All'),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 8),
-              SizedBox(
-                height: 220,
-                child: ListView.separated(
-                  scrollDirection: Axis.horizontal,
-                  itemCount: _featuredMachines.length,
-                  separatorBuilder: (_, __) => const SizedBox(width: 12),
-                  itemBuilder: (_, i) => _FeaturedMachineCard(
-                    machine: _featuredMachines[i],
-                    onTap: () => Navigator.push(context,
-                      MaterialPageRoute(builder: (_) => MachineDetailScreen(machine: _featuredMachines[i]))),
-                  ),
+            const SizedBox(height: 24),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text('Available Machines',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                TextButton(
+                  onPressed: () {
+                    final homeState = context.findAncestorStateOfType<_HomeScreenState>();
+                    homeState?.setState(() => homeState._currentIndex = 1);
+                  },
+                  child: const Text('View All'),
                 ),
-              ),
-              const SizedBox(height: 24),
-            ],
+              ],
+            ),
+            const SizedBox(height: 8),
+            _loading
+                ? SizedBox(
+                    height: 220,
+                    child: ListView.separated(
+                      scrollDirection: Axis.horizontal,
+                      itemCount: 3,
+                      separatorBuilder: (_, __) => const SizedBox(width: 12),
+                      itemBuilder: (_, __) => Container(
+                        width: 180,
+                        decoration: BoxDecoration(
+                          color: Colors.grey[200],
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                      ),
+                    ),
+                  )
+                : _featuredMachines.isEmpty
+                    ? Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(28),
+                        decoration: BoxDecoration(
+                          color: Colors.grey[100],
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        child: Column(
+                          children: [
+                            Icon(Icons.construction_outlined, size: 48, color: Colors.grey[400]),
+                            const SizedBox(height: 12),
+                            Text('No machines available yet',
+                              style: TextStyle(color: Colors.grey[600], fontWeight: FontWeight.w600)),
+                            const SizedBox(height: 4),
+                            Text('Check back soon or search by category above',
+                              style: TextStyle(color: Colors.grey[400], fontSize: 13),
+                              textAlign: TextAlign.center),
+                          ],
+                        ),
+                      )
+                    : SizedBox(
+                        height: 220,
+                        child: ListView.separated(
+                          scrollDirection: Axis.horizontal,
+                          itemCount: _featuredMachines.length,
+                          separatorBuilder: (_, __) => const SizedBox(width: 12),
+                          itemBuilder: (_, i) => _FeaturedMachineCard(
+                            machine: _featuredMachines[i],
+                            onTap: () => Navigator.push(context,
+                              MaterialPageRoute(builder: (_) => MachineDetailScreen(machine: _featuredMachines[i]))),
+                          ),
+                        ),
+                      ),
 
             // Recent Bookings
             if (_recentBookings.isNotEmpty) ...[
@@ -307,18 +340,6 @@ class _HomeBodyState extends State<_HomeBody> {
         ),
       ),
     );
-  }
-
-  IconData _getCategoryIcon(String cat) {
-    switch (cat) {
-      case 'JCB': return Icons.construction;
-      case 'Excavator': return Icons.precision_manufacturing;
-      case 'Crane': return Icons.height;
-      case 'Bulldozer': return Icons.agriculture;
-      case 'Roller': return Icons.roller_shades;
-      case 'Pokelane': return Icons.engineering;
-      default: return Icons.construction;
-    }
   }
 
   void _searchCategory(String category) {

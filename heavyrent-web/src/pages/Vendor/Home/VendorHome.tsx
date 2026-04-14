@@ -1,21 +1,42 @@
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../../context/AuthContext';
 import { Truck, CalendarCheck, IndianRupee, Clock, Plus, ChevronRight } from 'lucide-react';
-import { mockVendorBookings, MACHINE_ICONS, VENDOR_EARNINGS } from '../../../data/mockData';
+import { getVendorBookings, getMyMachines, getVendorEarnings } from '../../../services/api';
+import type { Booking, Machine } from '../../../types';
 import Badge from '../../../components/common/Badge';
+
+const MACHINE_ICONS: Record<string, string> = {
+  JCB: '🚜', Excavator: '⛏️', Crane: '🏗️', Bulldozer: '🚧', Roller: '🛞', Pokelane: '🛣️',
+};
 
 export default function VendorHome() {
   const { user } = useAuth();
   const navigate = useNavigate();
 
+  const [bookings, setBookings] = useState<Booking[]>([]);
+  const [machines, setMachines] = useState<Machine[]>([]);
+  const [earnings, setEarnings] = useState<{ total: number; thisMonth: number; month: number } | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    Promise.all([
+      getVendorBookings().then((res: any) => setBookings(res.bookings || [])).catch(() => setBookings([])),
+      getMyMachines().then((res: any) => setMachines(res.machines || [])).catch(() => setMachines([])),
+      getVendorEarnings().then((res: any) => setEarnings(res.earnings || null)).catch(() => setEarnings(null)),
+    ]).finally(() => setLoading(false));
+  }, []);
+
   const stats = {
-    machines: 2,
-    pending: mockVendorBookings.filter(b => b.status === 'pending').length,
-    active: mockVendorBookings.filter(b => ['accepted', 'in_progress'].includes(b.status)).length,
-    completed: mockVendorBookings.filter(b => b.status === 'completed').length,
+    machines: machines.length,
+    pending: bookings.filter(b => b.status === 'pending').length,
+    active: bookings.filter(b => ['accepted', 'in_progress'].includes(b.status)).length,
+    completed: bookings.filter(b => b.status === 'completed').length,
   };
 
-  const recentBookings = mockVendorBookings.slice(0, 4);
+  const recentBookings = bookings.slice(0, 4);
+
+  if (loading) return <div style={{ textAlign: 'center', padding: 40 }}>Loading...</div>;
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }} className="fade-in">
@@ -47,10 +68,10 @@ export default function VendorHome() {
         <div style={{ position: 'relative' }}>
           <div style={{ color: 'rgba(255,255,255,0.7)', fontSize: 13, marginBottom: 4 }}>Total Earnings</div>
           <div style={{ color: '#fff', fontSize: 36, fontWeight: 800, letterSpacing: '-0.02em', marginBottom: 6 }}>
-            ₹{VENDOR_EARNINGS.total.toLocaleString('en-IN')}
+            ₹{(earnings?.total || 0).toLocaleString('en-IN')}
           </div>
           <div style={{ color: 'rgba(255,255,255,0.65)', fontSize: 13 }}>
-            ₹{VENDOR_EARNINGS.thisMonth.toLocaleString('en-IN')} this month · {stats.completed} completed bookings
+            ₹{(earnings?.thisMonth || earnings?.month || 0).toLocaleString('en-IN')} this month · {stats.completed} completed bookings
           </div>
         </div>
       </div>
@@ -89,7 +110,9 @@ export default function VendorHome() {
             </button>
           </div>
           <div>
-            {recentBookings.map((b, i) => (
+            {recentBookings.length === 0 ? (
+              <div style={{ padding: 32, textAlign: 'center', color: '#9CA3AF', fontSize: 14 }}>No bookings yet</div>
+            ) : recentBookings.map((b, i) => (
               <div key={b.id} style={{
                 padding: '14px 20px', borderBottom: i < recentBookings.length - 1 ? '1px solid #F3F4F6' : 'none',
                 display: 'flex', gap: 12, alignItems: 'center', transition: 'background 0.1s',
@@ -142,9 +165,8 @@ export default function VendorHome() {
           <div style={{ background: '#1A1A2E', borderRadius: 12, padding: '18px' }}>
             <div style={{ color: '#9CA3AF', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 12 }}>This Period</div>
             {[
-              { label: 'Today', value: VENDOR_EARNINGS.today, color: '#43A047' },
-              { label: 'This Week', value: VENDOR_EARNINGS.thisWeek, color: '#3B82F6' },
-              { label: 'This Month', value: VENDOR_EARNINGS.thisMonth, color: '#FF8C00' },
+              { label: 'This Week', value: 0, color: '#3B82F6' },
+              { label: 'This Month', value: earnings?.thisMonth || earnings?.month || 0, color: '#FF8C00' },
             ].map(e => (
               <div key={e.label} style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
                 <span style={{ color: '#6B7280', fontSize: 13 }}>{e.label}</span>

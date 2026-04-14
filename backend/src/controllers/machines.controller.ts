@@ -3,6 +3,21 @@ import { db, storage, Timestamp } from '../config/firebase';
 import { AuthRequest } from '../middleware/auth';
 import { v4 as uuidv4 } from 'uuid';
 
+function serializeMachine(data: any): any {
+  const result = { ...data };
+  if (result.createdAt && typeof result.createdAt === 'object' && '_seconds' in result.createdAt) {
+    result.createdAt = new Date(result.createdAt._seconds * 1000).toISOString().split('T')[0];
+  } else if (result.createdAt?.toDate) {
+    result.createdAt = result.createdAt.toDate().toISOString().split('T')[0];
+  }
+  if (result.updatedAt && typeof result.updatedAt === 'object' && '_seconds' in result.updatedAt) {
+    result.updatedAt = new Date(result.updatedAt._seconds * 1000).toISOString().split('T')[0];
+  } else if (result.updatedAt?.toDate) {
+    result.updatedAt = result.updatedAt.toDate().toISOString().split('T')[0];
+  }
+  return result;
+}
+
 export const createMachine = async (req: AuthRequest, res: Response) => {
   try {
     const { uid } = req.user!;
@@ -42,7 +57,7 @@ export const createMachine = async (req: AuthRequest, res: Response) => {
     };
 
     await db.collection('machines').doc(machineId).set(machine);
-    res.status(201).json({ machine });
+    res.status(201).json({ machine: serializeMachine(machine) });
   } catch (error) {
     res.status(500).json({ error: 'Failed to create machine listing' });
   }
@@ -78,7 +93,7 @@ export const getMachines = async (req: Request, res: Response) => {
       machines.sort((a, b) => b.hourlyRate - a.hourlyRate);
     }
 
-    res.json({ machines, count: machines.length });
+    res.json({ machines: machines.map(serializeMachine), count: machines.length });
   } catch {
     res.status(500).json({ error: 'Failed to fetch machines' });
   }
@@ -91,7 +106,7 @@ export const getMachineById = async (req: Request, res: Response) => {
       res.status(404).json({ error: 'Machine not found' });
       return;
     }
-    res.json({ machine: doc.data() });
+    res.json({ machine: serializeMachine(doc.data()) });
   } catch {
     res.status(500).json({ error: 'Failed to fetch machine' });
   }
@@ -149,9 +164,23 @@ export const getVendorMachines = async (req: AuthRequest, res: Response) => {
     const snapshot = await db.collection('machines')
       .where('vendorId', '==', req.user!.uid)
       .get();
-    const machines = snapshot.docs.map(doc => doc.data());
+    const machines = snapshot.docs.map(doc => serializeMachine(doc.data()));
     res.json({ machines, count: machines.length });
   } catch {
     res.status(500).json({ error: 'Failed to fetch vendor machines' });
+  }
+};
+
+export const toggleAvailability = async (req: AuthRequest, res: Response) => {
+  try {
+    const machineRef = db.collection('machines').doc(req.params.id);
+    const machineDoc = await machineRef.get();
+    if (!machineDoc.exists) { res.status(404).json({ error: 'Machine not found' }); return; }
+    if (machineDoc.data()?.vendorId !== req.user!.uid) { res.status(403).json({ error: 'Not authorized' }); return; }
+    const { isAvailable } = req.body;
+    await machineRef.update({ isAvailable: !!isAvailable, updatedAt: Timestamp.now() });
+    res.json({ isAvailable: !!isAvailable });
+  } catch {
+    res.status(500).json({ error: 'Failed to update availability' });
   }
 };

@@ -1,17 +1,36 @@
+import { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, MapPin, Phone, Clock, IndianRupee, Zap, Star, CheckCircle } from 'lucide-react';
-import { mockMachines, MACHINE_ICONS } from '../../../data/mockData';
+import { getMachineById } from '../../../services/api';
+import type { Machine } from '../../../types';
 import Badge from '../../../components/common/Badge';
+
+const MACHINE_ICONS: Record<string, string> = {
+  JCB: '🚜', Excavator: '⛏️', Crane: '🏗️', Bulldozer: '🚧', Roller: '🛞', Pokelane: '🛣️',
+};
 
 export default function MachineDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const machine = mockMachines.find(m => m.id === id);
 
-  if (!machine) return (
+  const [machine, setMachine] = useState<Machine | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    if (!id) return;
+    setLoading(true);
+    getMachineById(id)
+      .then((res: any) => setMachine(res.machine || res))
+      .catch((err: any) => setError(err.message || 'Machine not found'))
+      .finally(() => setLoading(false));
+  }, [id]);
+
+  if (loading) return <div style={{ textAlign: 'center', padding: 40 }}>Loading...</div>;
+  if (error || !machine) return (
     <div style={{ textAlign: 'center', padding: 60 }}>
       <div style={{ fontSize: 48, marginBottom: 12 }}>😕</div>
-      <h2 style={{ color: '#1A1D26' }}>Machine not found</h2>
+      <h2 style={{ color: '#1A1D26' }}>{error || 'Machine not found'}</h2>
       <button onClick={() => navigate('/customer/search')} style={{ marginTop: 16, padding: '10px 24px', background: '#FF8C00', color: '#fff', border: 'none', borderRadius: 8, fontWeight: 700, cursor: 'pointer' }}>Back to Search</button>
     </div>
   );

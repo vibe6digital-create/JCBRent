@@ -1,6 +1,8 @@
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Plus, Clock, IndianRupee, ArrowRight } from 'lucide-react';
-import { mockEstimates } from '../../../data/mockData';
+import { getMyEstimates } from '../../../services/api';
+import type { Estimate } from '../../../types';
 
 const WORK_LABELS: Record<string, string> = {
   excavation: 'Excavation', leveling: 'Land Leveling', trenching: 'Trenching',
@@ -11,6 +13,20 @@ const SOIL_LABELS: Record<string, string> = { soft: 'Soft Soil', mixed: 'Mixed',
 
 export default function MyEstimates() {
   const navigate = useNavigate();
+
+  const [estimates, setEstimates] = useState<Estimate[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    getMyEstimates()
+      .then((res: any) => setEstimates(res.estimates || []))
+      .catch((err: any) => setError(err.message || 'Failed to load estimates'))
+      .finally(() => setLoading(false));
+  }, []);
+
+  if (loading) return <div style={{ textAlign: 'center', padding: 40 }}>Loading...</div>;
+  if (error) return <div style={{ textAlign: 'center', padding: 40, color: '#E53935' }}>{error}</div>;
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }} className="fade-in">
@@ -27,7 +43,7 @@ export default function MyEstimates() {
         </button>
       </div>
 
-      {mockEstimates.length === 0 ? (
+      {estimates.length === 0 ? (
         <div style={{ background: '#fff', borderRadius: 14, border: '1px solid #E5E7EB', padding: 48, textAlign: 'center' }}>
           <div style={{ fontSize: 48, marginBottom: 12 }}>🤖</div>
           <h3 style={{ fontSize: 16, fontWeight: 700, color: '#1A1D26', marginBottom: 6 }}>No estimates yet</h3>
@@ -37,7 +53,7 @@ export default function MyEstimates() {
         </div>
       ) : (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: 16 }}>
-          {mockEstimates.map(e => (
+          {estimates.map(e => (
             <div key={e.id} style={{ background: '#fff', borderRadius: 14, border: '1px solid #E5E7EB', overflow: 'hidden', transition: 'box-shadow 0.2s' }}
               onMouseEnter={el => { (el.currentTarget as HTMLElement).style.boxShadow = '0 4px 16px rgba(0,0,0,0.08)'; }}
               onMouseLeave={el => { (el.currentTarget as HTMLElement).style.boxShadow = 'none'; }}
@@ -45,7 +61,7 @@ export default function MyEstimates() {
               <div style={{ background: '#1A1A2E', padding: '14px 18px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <div>
                   <div style={{ color: '#FF8C00', fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em' }}>Smart Estimate</div>
-                  <div style={{ color: '#fff', fontSize: 15, fontWeight: 700, marginTop: 2 }}>{WORK_LABELS[e.workType]}</div>
+                  <div style={{ color: '#fff', fontSize: 15, fontWeight: 700, marginTop: 2 }}>{WORK_LABELS[e.workType] || e.workType}</div>
                 </div>
                 <div style={{ fontSize: 28 }}>🤖</div>
               </div>
@@ -53,11 +69,11 @@ export default function MyEstimates() {
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
                   <div style={{ background: '#F5F5F5', borderRadius: 8, padding: '8px 10px' }}>
                     <div style={{ fontSize: 10, color: '#9CA3AF', fontWeight: 600, marginBottom: 2 }}>AREA</div>
-                    <div style={{ fontSize: 12, fontWeight: 700, color: '#1A1D26' }}>{AREA_LABELS[e.areaSize]}</div>
+                    <div style={{ fontSize: 12, fontWeight: 700, color: '#1A1D26' }}>{AREA_LABELS[e.areaSize] || e.areaSize}</div>
                   </div>
                   <div style={{ background: '#F5F5F5', borderRadius: 8, padding: '8px 10px' }}>
                     <div style={{ fontSize: 10, color: '#9CA3AF', fontWeight: 600, marginBottom: 2 }}>SOIL</div>
-                    <div style={{ fontSize: 12, fontWeight: 700, color: '#1A1D26' }}>{SOIL_LABELS[e.soilType]}</div>
+                    <div style={{ fontSize: 12, fontWeight: 700, color: '#1A1D26' }}>{SOIL_LABELS[e.soilType] || e.soilType}</div>
                   </div>
                 </div>
                 <div style={{ background: '#FFF3E0', borderRadius: 8, padding: '8px 12px' }}>
