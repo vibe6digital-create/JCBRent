@@ -283,6 +283,9 @@ class _AddEditMachineScreenState extends State<AddEditMachineScreen> {
     setState(() => _isLoading = true);
 
     try {
+      // Upload photos first, then create machine with URLs
+      final imageUrls = await _machineService.uploadMachinePhotos(_newPhotos);
+
       await _machineService.createMachine(
         category: _category!,
         model: _modelController.text.trim(),
@@ -292,6 +295,7 @@ class _AddEditMachineScreenState extends State<AddEditMachineScreen> {
         city: _cityController.text.trim(),
         state: _stateController.text.trim(),
         serviceAreas: _selectedServiceAreas.toList(),
+        imageUrls: imageUrls,
       );
 
       if (mounted) {

@@ -214,6 +214,18 @@ export const getProfile = async (req: AuthRequest, res: Response) => {
   }
 };
 
+export const updateFcmToken = async (req: AuthRequest, res: Response) => {
+  try {
+    const { uid } = req.user!;
+    const { fcmToken } = req.body;
+    if (!fcmToken) { res.status(400).json({ error: 'fcmToken required' }); return; }
+    await db.collection('users').doc(uid).update({ fcmToken, updatedAt: Timestamp.now() });
+    res.json({ success: true });
+  } catch {
+    res.status(500).json({ error: 'Failed to update FCM token' });
+  }
+};
+
 export const updateOnlineStatus = async (req: AuthRequest, res: Response) => {
   try {
     const { uid, role } = req.user!;

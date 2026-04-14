@@ -28,6 +28,7 @@ if (!admin.apps.length) {
 export const db = admin.firestore();
 export const auth = admin.auth();
 export const storage = admin.storage();
+export const messaging = admin.messaging();
 export const FieldValue = admin.firestore.FieldValue;
 export const Timestamp = admin.firestore.Timestamp;
 

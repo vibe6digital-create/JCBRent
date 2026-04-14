@@ -3,12 +3,14 @@ import 'package:firebase_core/firebase_core.dart';
 import 'config/theme.dart';
 import 'firebase_options.dart';
 import 'screens/splash/splash_screen.dart';
+import 'services/fcm_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
+  await FCMService.init();
   runApp(const HeavyRentApp());
 }
 

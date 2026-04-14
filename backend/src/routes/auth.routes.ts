@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { authenticate, authorize } from '../middleware/auth';
 import {
   sendOtp, verifyOtp,
-  createOrUpdateUser, getProfile, updateOnlineStatus,
+  createOrUpdateUser, getProfile, updateOnlineStatus, updateFcmToken,
 } from '../controllers/auth.controller';
 
 const router = Router();
@@ -17,5 +17,6 @@ router.get('/profile', authenticate, getProfile);
 router.put('/profile', authenticate, createOrUpdateUser);
 router.patch('/profile', authenticate, createOrUpdateUser);
 router.patch('/online-status', authenticate, authorize('vendor'), updateOnlineStatus);
+router.patch('/fcm-token', authenticate, updateFcmToken);
 
 export default router;

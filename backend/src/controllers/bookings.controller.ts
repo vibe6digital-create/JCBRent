@@ -1,7 +1,23 @@
 import { Response } from 'express';
-import { db, Timestamp } from '../config/firebase';
+import { db, Timestamp, messaging } from '../config/firebase';
 import { AuthRequest } from '../middleware/auth';
 import { v4 as uuidv4 } from 'uuid';
+
+async function sendPush(userId: string, title: string, body: string): Promise<void> {
+  try {
+    const userDoc = await db.collection('users').doc(userId).get();
+    const fcmToken = userDoc.data()?.fcmToken;
+    if (!fcmToken) return;
+    await messaging.send({
+      token: fcmToken,
+      notification: { title, body },
+      android: { priority: 'high', notification: { sound: 'default' } },
+      apns: { payload: { aps: { sound: 'default', badge: 1 } } },
+    });
+  } catch (err) {
+    console.warn('[FCM] Push send failed:', err);
+  }
+}
 
 function serializeBooking(data: any): any {
   const result = { ...data };
@@ -110,16 +126,19 @@ export const createBooking = async (req: AuthRequest, res: Response) => {
     await db.collection('bookings').doc(bookingId).set(booking);
 
     // Create notification for vendor
+    const vendorNotifTitle = 'New Booking Request';
+    const vendorNotifBody = `${user.name} has requested to book your ${machine.category} - ${machine.model}`;
     await db.collection('notifications').add({
       id: uuidv4(),
       userId: machine.vendorId,
-      title: 'New Booking Request',
-      body: `${user.name} has requested to book your ${machine.category} - ${machine.model}`,
+      title: vendorNotifTitle,
+      body: vendorNotifBody,
       type: 'booking_request',
       referenceId: bookingId,
       isRead: false,
       createdAt: Timestamp.now(),
     });
+    sendPush(machine.vendorId, vendorNotifTitle, vendorNotifBody);
 
     res.status(201).json({ booking: serializeBooking(booking) });
   } catch {
@@ -157,16 +176,19 @@ export const updateBookingStatus = async (req: AuthRequest, res: Response) => {
       completed: 'Your booking has been marked as completed.',
     };
 
+    const notifTitle = `Booking ${status.charAt(0).toUpperCase() + status.slice(1)}`;
+    const notifBody = statusMessages[status] || `Booking status updated to ${status}`;
     await db.collection('notifications').add({
       id: uuidv4(),
       userId: booking.customerId,
-      title: `Booking ${status.charAt(0).toUpperCase() + status.slice(1)}`,
-      body: statusMessages[status] || `Booking status updated to ${status}`,
+      title: notifTitle,
+      body: notifBody,
       type: `booking_${status}`,
       referenceId: id,
       isRead: false,
       createdAt: Timestamp.now(),
     });
+    sendPush(booking.customerId, notifTitle, notifBody);
 
     res.json({ message: `Booking ${status}`, bookingId: id });
   } catch {
@@ -257,16 +279,19 @@ export const markArrived = async (req: AuthRequest, res: Response) => {
     });
 
     // Notify customer with OTP
+    const arrivedTitle = 'Machine Has Arrived!';
+    const arrivedBody = `Your ${booking.machineCategory} has arrived. Start OTP: ${otp}. Share with the operator to begin work.`;
     await db.collection('notifications').add({
       id: uuidv4(),
       userId: booking.customerId,
-      title: 'Machine Has Arrived!',
-      body: `Your ${booking.machineCategory} has arrived at the site. Your start OTP is: ${otp}. Share this with the operator to begin work.`,
+      title: arrivedTitle,
+      body: arrivedBody,
       type: 'booking_arrived',
       referenceId: id,
       isRead: false,
       createdAt: Timestamp.now(),
     });
+    sendPush(booking.customerId, arrivedTitle, arrivedBody);
 
     res.json({ message: 'Arrival marked. OTP sent to customer.', otp });
   } catch {
@@ -313,16 +338,19 @@ export const verifyStartOtp = async (req: AuthRequest, res: Response) => {
     });
 
     // Notify customer that work has started
+    const startedTitle = 'Work Has Started!';
+    const startedBody = `Work on your ${booking.machineCategory} booking has started. OTP verified successfully.`;
     await db.collection('notifications').add({
       id: uuidv4(),
       userId: booking.customerId,
-      title: 'Work Has Started!',
-      body: `Work on your ${booking.machineCategory} booking has started. OTP verified successfully.`,
+      title: startedTitle,
+      body: startedBody,
       type: 'booking_started',
       referenceId: id,
       isRead: false,
       createdAt: Timestamp.now(),
     });
+    sendPush(booking.customerId, startedTitle, startedBody);
 
     res.json({ message: 'Work started successfully' });
   } catch {
@@ -362,16 +390,19 @@ export const rateBooking = async (req: AuthRequest, res: Response) => {
     await bookingRef.update({ rating, review: review || '', updatedAt: Timestamp.now() });
 
     // Notify vendor
+    const ratingTitle = 'New Rating Received!';
+    const ratingBody = `${booking.customerName} rated your ${booking.machineCategory} ${rating}/5 stars.`;
     await db.collection('notifications').add({
       id: uuidv4(),
       userId: booking.vendorId,
-      title: 'New Rating Received!',
-      body: `${booking.customerName} rated your ${booking.machineCategory} ${rating}/5 stars.`,
+      title: ratingTitle,
+      body: ratingBody,
       type: 'general',
       referenceId: id,
       isRead: false,
       createdAt: Timestamp.now(),
     });
+    sendPush(booking.vendorId, ratingTitle, ratingBody);
 
     res.json({ message: 'Rating submitted' });
   } catch {

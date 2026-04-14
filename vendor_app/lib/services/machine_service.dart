@@ -1,3 +1,7 @@
+import 'dart:io';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_storage/firebase_storage.dart';
+import 'package:image_picker/image_picker.dart';
 import '../models/machine.dart';
 import 'api_service.dart';
 
@@ -19,6 +23,24 @@ class MachineService {
     }
   }
 
+  /// Uploads photos to Firebase Storage and returns download URLs
+  Future<List<String>> uploadMachinePhotos(List<XFile> photos) async {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null || photos.isEmpty) return [];
+
+    final storage = FirebaseStorage.instance;
+    final urls = <String>[];
+
+    for (final photo in photos) {
+      final fileName = '${DateTime.now().millisecondsSinceEpoch}_${photos.indexOf(photo)}.jpg';
+      final ref = storage.ref().child('machines/$uid/$fileName');
+      await ref.putFile(File(photo.path));
+      final url = await ref.getDownloadURL();
+      urls.add(url);
+    }
+    return urls;
+  }
+
   Future<Machine> createMachine({
     required String category,
     required String model,
@@ -28,6 +50,7 @@ class MachineService {
     required String city,
     required String state,
     required List<String> serviceAreas,
+    List<String> imageUrls = const [],
   }) async {
     final response = await _api.post('/machines', body: {
       'category': category,
@@ -37,6 +60,7 @@ class MachineService {
       'dailyRate': dailyRate,
       'location': {'city': city, 'state': state, 'latitude': 0, 'longitude': 0},
       'serviceAreas': serviceAreas,
+      if (imageUrls.isNotEmpty) 'images': imageUrls,
     });
     return Machine.fromJson(response['machine'] ?? response);
   }
