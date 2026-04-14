@@ -36,9 +36,10 @@ yarn-error.log*
 
 # ─── Nested duplicate Flutter projects (created by accident) ─────────────────
 customer_app/customer_app/
-customer_app_ios/
 customer_app_v2/
-vendor_app_ios/
+customer_app_ios/customer_app/
+customer_app_ios/customer_app_ios/
+vendor_app_ios/vendor_app_ios/
 
 # ─── OS / Editor ─────────────────────────────────────────────────────────────
 .DS_Store
