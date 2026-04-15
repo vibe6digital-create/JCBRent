@@ -10,6 +10,31 @@ const MACHINE_ICONS: Record<string, string> = {
   JCB: '🚜', Excavator: '⛏️', Crane: '🏗️', Bulldozer: '🚧', Roller: '🛞', Pokelane: '🛣️',
 };
 
+interface EditFieldProps {
+  label: string;
+  field: string;
+  type?: string;
+  placeholder?: string;
+  prefix?: string;
+  form: Record<string, unknown>;
+  errors: Record<string, string>;
+  set: (k: string, v: string) => void;
+}
+
+function EditField({ label, field, type = 'text', placeholder = '', prefix = '', form, errors, set }: EditFieldProps) {
+  return (
+    <div>
+      <label style={{ display: 'block', fontSize: 13, fontWeight: 700, color: '#374151', marginBottom: 6 }}>{label}</label>
+      <div style={{ display: 'flex', alignItems: 'center', border: `2px solid ${errors[field] ? '#E53935' : '#E5E7EB'}`, borderRadius: 8, overflow: 'hidden', background: '#fff' }}>
+        {prefix && <span style={{ padding: '0 12px', background: '#F5F5F5', borderRight: '1px solid #E5E7EB', color: '#6B7280', fontSize: 14, alignSelf: 'stretch', display: 'flex', alignItems: 'center' }}>{prefix}</span>}
+        <input type={type} value={form[field] as string} onChange={e => set(field, e.target.value)} placeholder={placeholder}
+          style={{ flex: 1, padding: '10px 14px', border: 'none', fontSize: 14, color: '#1A1D26', outline: 'none' }} />
+      </div>
+      {errors[field] && <p style={{ color: '#E53935', fontSize: 12, marginTop: 4 }}>{errors[field]}</p>}
+    </div>
+  );
+}
+
 export default function EditMachine() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -80,17 +105,8 @@ export default function EditMachine() {
     }
   };
 
-  const Field = ({ label, field, type = 'text', placeholder = '', prefix = '' }: { label: string; field: string; type?: string; placeholder?: string; prefix?: string }) => (
-    <div>
-      <label style={{ display: 'block', fontSize: 13, fontWeight: 700, color: '#374151', marginBottom: 6 }}>{label}</label>
-      <div style={{ display: 'flex', alignItems: 'center', border: `2px solid ${errors[field] ? '#E53935' : '#E5E7EB'}`, borderRadius: 8, overflow: 'hidden', background: '#fff' }}>
-        {prefix && <span style={{ padding: '0 12px', background: '#F5F5F5', borderRight: '1px solid #E5E7EB', color: '#6B7280', fontSize: 14, alignSelf: 'stretch', display: 'flex', alignItems: 'center' }}>{prefix}</span>}
-        <input type={type} value={(form as Record<string, unknown>)[field] as string} onChange={e => set(field, e.target.value)} placeholder={placeholder}
-          style={{ flex: 1, padding: '10px 14px', border: 'none', fontSize: 14, color: '#1A1D26', outline: 'none' }} />
-      </div>
-      {errors[field] && <p style={{ color: '#E53935', fontSize: 12, marginTop: 4 }}>{errors[field]}</p>}
-    </div>
-  );
+  const formAsRecord = form as Record<string, unknown>;
+  const setStr = set as (k: string, v: string) => void;
 
   if (loading) return (
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '60vh', gap: 10, color: '#9CA3AF' }}>
@@ -126,7 +142,7 @@ export default function EditMachine() {
           {/* Details */}
           <div style={{ background: '#fff', borderRadius: 14, border: '1px solid #E5E7EB', padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: 16 }}>
             <h3 style={{ fontSize: 15, fontWeight: 700, color: '#1A1D26' }}>Machine Details</h3>
-            <Field label="Model Name *" field="model" placeholder="e.g. JCB 3DX Plus" />
+            <EditField label="Model Name *" field="model" placeholder="e.g. JCB 3DX Plus" form={formAsRecord} errors={errors} set={setStr} />
             <div>
               <label style={{ display: 'block', fontSize: 13, fontWeight: 700, color: '#374151', marginBottom: 6 }}>Description</label>
               <textarea value={form.description} onChange={e => set('description', e.target.value)} placeholder="Describe the machine condition, features..."
@@ -138,17 +154,17 @@ export default function EditMachine() {
           <div style={{ background: '#fff', borderRadius: 14, border: '1px solid #E5E7EB', padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: 16 }}>
             <h3 style={{ fontSize: 15, fontWeight: 700, color: '#1A1D26' }}>Pricing</h3>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
-              <Field label="Hourly Rate (₹) *" field="hourlyRate" type="number" placeholder="1200" prefix="₹" />
-              <Field label="Daily Rate (₹) *" field="dailyRate" type="number" placeholder="8000" prefix="₹" />
-              <Field label="Weekly Rate (₹)" field="weeklyRate" type="number" placeholder="45000" prefix="₹" />
-              <Field label="Monthly Rate (₹)" field="monthlyRate" type="number" placeholder="160000" prefix="₹" />
+              <EditField label="Hourly Rate (₹) *" field="hourlyRate" type="number" placeholder="1200" prefix="₹" form={formAsRecord} errors={errors} set={setStr} />
+              <EditField label="Daily Rate (₹) *" field="dailyRate" type="number" placeholder="8000" prefix="₹" form={formAsRecord} errors={errors} set={setStr} />
+              <EditField label="Weekly Rate (₹)" field="weeklyRate" type="number" placeholder="45000" prefix="₹" form={formAsRecord} errors={errors} set={setStr} />
+              <EditField label="Monthly Rate (₹)" field="monthlyRate" type="number" placeholder="160000" prefix="₹" form={formAsRecord} errors={errors} set={setStr} />
             </div>
           </div>
 
           {/* Service Areas */}
           <div style={{ background: '#fff', borderRadius: 14, border: '1px solid #E5E7EB', padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: 16 }}>
             <h3 style={{ fontSize: 15, fontWeight: 700, color: '#1A1D26' }}>Service Areas</h3>
-            <Field label="Service Areas (comma-separated)" field="serviceAreas" placeholder="Pune, Mumbai, Nashik" />
+            <EditField label="Service Areas (comma-separated)" field="serviceAreas" placeholder="Pune, Mumbai, Nashik" form={formAsRecord} errors={errors} set={setStr} />
             <p style={{ fontSize: 12, color: '#9CA3AF', marginTop: -10 }}>City & State are set at listing time and cannot be changed here.</p>
           </div>
 
