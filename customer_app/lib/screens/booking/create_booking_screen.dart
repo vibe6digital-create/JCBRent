@@ -27,6 +27,11 @@ class _CreateBookingScreenState extends State<CreateBookingScreen> {
   int _currentStep = 0;
   bool _isBookLater = false;
 
+  bool _couponLoading = false;
+  bool _couponApplied = false;
+  double _couponDiscount = 0;
+  String _couponMessage = '';
+
   // Duration quantity for weekly/monthly
   int _durationQty = 1;
 
@@ -423,42 +428,93 @@ class _CreateBookingScreenState extends State<CreateBookingScreen> {
               const SizedBox(height: 16),
 
               // Coupon Code
-              Row(
-                children: [
-                  Expanded(
-                    child: TextField(
-                      controller: _couponController,
-                      textCapitalization: TextCapitalization.characters,
-                      decoration: InputDecoration(
-                        hintText: 'Coupon code (optional)',
-                        prefixIcon: const Icon(Icons.local_offer_outlined),
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                        filled: true,
-                        fillColor: Colors.white,
+              if (_couponApplied) ...[
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                  decoration: BoxDecoration(
+                    color: AppTheme.successColor.withAlpha(20),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: AppTheme.successColor.withAlpha(80)),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.check_circle, color: AppTheme.successColor, size: 18),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(_couponController.text,
+                              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: AppTheme.successColor)),
+                            Text(_couponMessage, style: TextStyle(fontSize: 12, color: Colors.grey[600])),
+                          ],
+                        ),
+                      ),
+                      TextButton(
+                        onPressed: () => setState(() {
+                          _couponApplied = false;
+                          _couponDiscount = 0;
+                          _couponMessage = '';
+                          _couponController.clear();
+                        }),
+                        child: const Text('Remove', style: TextStyle(color: Colors.red, fontSize: 12)),
+                      ),
+                    ],
+                  ),
+                ),
+              ] else ...[
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: _couponController,
+                        textCapitalization: TextCapitalization.characters,
+                        decoration: InputDecoration(
+                          hintText: 'Coupon code (optional)',
+                          prefixIcon: const Icon(Icons.local_offer_outlined),
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                          filled: true,
+                          fillColor: Colors.white,
+                        ),
                       ),
                     ),
-                  ),
-                  const SizedBox(width: 8),
-                  Container(
-                    height: 52,
-                    decoration: BoxDecoration(
-                      color: AppTheme.primaryColor,
-                      borderRadius: BorderRadius.circular(12),
+                    const SizedBox(width: 8),
+                    Container(
+                      height: 52,
+                      decoration: BoxDecoration(
+                        color: _couponLoading ? Colors.grey : AppTheme.primaryColor,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: TextButton(
+                        onPressed: _couponLoading ? null : () async {
+                          final code = _couponController.text.trim();
+                          if (code.isEmpty) return;
+                          setState(() => _couponLoading = true);
+                          try {
+                            final result = await _bookingService.validateCoupon(code, _estimatedCost);
+                            setState(() {
+                              _couponApplied = true;
+                              _couponDiscount = (result['discountAmount'] as num).toDouble();
+                              _couponMessage = result['message'] ?? 'Discount applied!';
+                            });
+                          } catch (e) {
+                            if (mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(content: Text(e.toString().replaceAll('Exception: ', '')),
+                                  backgroundColor: Colors.red));
+                            }
+                          } finally {
+                            if (mounted) setState(() => _couponLoading = false);
+                          }
+                        },
+                        child: _couponLoading
+                          ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                          : const Text('Apply', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                      ),
                     ),
-                    child: TextButton(
-                      onPressed: () {
-                        if (_couponController.text.isNotEmpty) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(content: Text('Coupon "${_couponController.text}" applied!'),
-                              backgroundColor: AppTheme.successColor),
-                          );
-                        }
-                      },
-                      child: const Text('Apply', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-                    ),
-                  ),
-                ],
-              ),
+                  ],
+                ),
+              ],
               const SizedBox(height: 16),
 
               // Cost
@@ -468,19 +524,45 @@ class _CreateBookingScreenState extends State<CreateBookingScreen> {
                   color: AppTheme.secondaryColor,
                   borderRadius: BorderRadius.circular(16),
                 ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                child: Column(
                   children: [
-                    const Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                    if (_couponApplied) ...[
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Text('Subtotal', style: TextStyle(color: Colors.white70, fontSize: 14)),
+                          Text('Rs ${_estimatedCost.toInt()}',
+                            style: const TextStyle(color: Colors.white54, fontSize: 14,
+                              decoration: TextDecoration.lineThrough)),
+                        ],
+                      ),
+                      const SizedBox(height: 6),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Text('Discount', style: TextStyle(color: Colors.white70, fontSize: 14)),
+                          Text('- Rs ${_couponDiscount.toInt()}',
+                            style: const TextStyle(color: AppTheme.successColor, fontSize: 14, fontWeight: FontWeight.bold)),
+                        ],
+                      ),
+                      Divider(color: Colors.white.withAlpha(30), height: 20),
+                    ],
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Text('Estimated Cost', style: TextStyle(color: Colors.white70, fontSize: 14)),
-                        SizedBox(height: 2),
-                        Text('(Approximate range)', style: TextStyle(color: Colors.white38, fontSize: 11)),
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(_couponApplied ? 'Total (after discount)' : 'Estimated Cost',
+                              style: const TextStyle(color: Colors.white70, fontSize: 14)),
+                            const SizedBox(height: 2),
+                            const Text('(Approximate range)', style: TextStyle(color: Colors.white38, fontSize: 11)),
+                          ],
+                        ),
+                        Text('Rs ${(_estimatedCost - _couponDiscount).clamp(0, double.infinity).toInt()}',
+                          style: const TextStyle(color: AppTheme.accentColor, fontSize: 26, fontWeight: FontWeight.bold)),
                       ],
                     ),
-                    Text('Rs ${_estimatedCost.toInt()}',
-                      style: const TextStyle(color: AppTheme.accentColor, fontSize: 26, fontWeight: FontWeight.bold)),
                   ],
                 ),
               ),
