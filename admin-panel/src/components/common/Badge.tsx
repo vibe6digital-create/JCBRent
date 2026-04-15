@@ -9,7 +9,11 @@ const configs: Record<string, { bg: string; color: string; label: string }> = {
   pending: { bg: '#FFFBEB', color: '#F59E0B', label: 'Pending' },
   rejected: { bg: '#FFEBEE', color: '#E53935', label: 'Rejected' },
   // booking
-  completed: { bg: '#EFF6FF', color: '#3B82F6', label: 'Completed' },
+  accepted: { bg: '#E8F5E9', color: '#43A047', label: 'Accepted' },
+  arrived: { bg: '#FFF3E0', color: '#FF8C00', label: 'Arrived' },
+  in_progress: { bg: '#EFF6FF', color: '#3B82F6', label: 'In Progress' },
+  completed: { bg: '#E8F5E9', color: '#166534', label: 'Completed' },
+  cancelled: { bg: '#FEF2F2', color: '#DC2626', label: 'Cancelled' },
   // role
   customer: { bg: '#F0FDF4', color: '#16A34A', label: 'Customer' },
   vendor: { bg: '#FFF7ED', color: '#EA580C', label: 'Vendor' },

@@ -47,6 +47,182 @@ function generateOtp(): string {
   return Math.floor(1000 + Math.random() * 9000).toString();
 }
 
+// ── Vendor broadcasts real-time GPS location ──────────────────────────────
+export const updateVendorLocation = async (req: AuthRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { lat, lng } = req.body;
+    const { uid } = req.user!;
+
+    if (!lat || !lng) {
+      res.status(400).json({ error: 'lat and lng are required' });
+      return;
+    }
+
+    const bookingRef = db.collection('bookings').doc(id);
+    const bookingDoc = await bookingRef.get();
+    if (!bookingDoc.exists) {
+      res.status(404).json({ error: 'Booking not found' });
+      return;
+    }
+
+    const booking = bookingDoc.data()!;
+    if (booking.vendorId !== uid) {
+      res.status(403).json({ error: 'Not authorized' });
+      return;
+    }
+
+    await bookingRef.update({
+      vendorLat: parseFloat(lat),
+      vendorLng: parseFloat(lng),
+      vendorLocationUpdatedAt: Timestamp.now(),
+    });
+
+    res.json({ ok: true });
+  } catch {
+    res.status(500).json({ error: 'Failed to update location' });
+  }
+};
+
+// ── Customer cancels a booking ─────────────────────────────────────────────
+export const cancelBooking = async (req: AuthRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { reason } = req.body;
+    const { uid, role } = req.user!;
+
+    if (!reason || typeof reason !== 'string' || reason.trim().length === 0) {
+      res.status(400).json({ error: 'Cancellation reason is required' });
+      return;
+    }
+
+    const bookingRef = db.collection('bookings').doc(id);
+    const bookingDoc = await bookingRef.get();
+
+    if (!bookingDoc.exists) {
+      res.status(404).json({ error: 'Booking not found' });
+      return;
+    }
+
+    const booking = bookingDoc.data()!;
+
+    // Only the customer who made the booking (or admin) can cancel
+    if (booking.customerId !== uid && role !== 'admin') {
+      res.status(403).json({ error: 'Not authorized to cancel this booking' });
+      return;
+    }
+
+    // Can only cancel if pending or accepted — not once work has started
+    const cancellableStatuses = ['pending', 'accepted'];
+    if (!cancellableStatuses.includes(booking.status)) {
+      res.status(400).json({
+        error: `Cannot cancel a booking that is ${booking.status}. Only pending or accepted bookings can be cancelled.`,
+      });
+      return;
+    }
+
+    await bookingRef.update({
+      status: 'cancelled',
+      cancellationReason: reason.trim(),
+      cancelledBy: role === 'admin' ? 'admin' : 'customer',
+      cancelledAt: Timestamp.now(),
+      updatedAt: Timestamp.now(),
+    });
+
+    // Notify vendor
+    const notifTitle = 'Booking Cancelled';
+    const notifBody = `${booking.customerName} has cancelled their booking for ${booking.machineCategory} - ${booking.machineModel}.`;
+    await db.collection('notifications').add({
+      id: uuidv4(),
+      userId: booking.vendorId,
+      title: notifTitle,
+      body: notifBody,
+      type: 'booking_cancelled',
+      referenceId: id,
+      isRead: false,
+      createdAt: Timestamp.now(),
+    });
+    sendPush(booking.vendorId, notifTitle, notifBody);
+
+    res.json({ message: 'Booking cancelled successfully', bookingId: id });
+  } catch {
+    res.status(500).json({ error: 'Failed to cancel booking' });
+  }
+};
+
+// ── Validate coupon (pre-booking check) ────────────────────────────────────
+export const validateCoupon = async (req: AuthRequest, res: Response) => {
+  try {
+    const { code, estimatedCost } = req.body;
+    if (!code || typeof code !== 'string') {
+      res.status(400).json({ error: 'Coupon code is required' });
+      return;
+    }
+
+    const couponSnap = await db.collection('coupons')
+      .where('code', '==', code.trim().toUpperCase())
+      .where('isActive', '==', true)
+      .limit(1)
+      .get();
+
+    if (couponSnap.empty) {
+      res.status(404).json({ error: 'Invalid or expired coupon code' });
+      return;
+    }
+
+    const coupon = couponSnap.docs[0].data();
+
+    // Check expiry date
+    if (coupon.expiryDate) {
+      const expiry = coupon.expiryDate.toDate ? coupon.expiryDate.toDate() : new Date(coupon.expiryDate);
+      if (expiry < new Date()) {
+        res.status(400).json({ error: 'This coupon has expired' });
+        return;
+      }
+    }
+
+    // Check usage limit
+    if (coupon.maxUses && (coupon.usedCount ?? 0) >= coupon.maxUses) {
+      res.status(400).json({ error: 'This coupon has reached its usage limit' });
+      return;
+    }
+
+    // Check minimum booking amount
+    const cost = parseFloat(estimatedCost) || 0;
+    if (coupon.minBookingAmount && cost < coupon.minBookingAmount) {
+      res.status(400).json({
+        error: `Minimum booking amount of ₹${coupon.minBookingAmount} required for this coupon`,
+      });
+      return;
+    }
+
+    // Calculate discount amount
+    let discountAmount = 0;
+    if (coupon.discountType === 'percent') {
+      discountAmount = Math.floor(cost * coupon.discountValue / 100);
+      if (coupon.maxDiscount && discountAmount > coupon.maxDiscount) {
+        discountAmount = coupon.maxDiscount;
+      }
+    } else {
+      discountAmount = Math.min(coupon.discountValue, cost);
+    }
+
+    res.json({
+      valid: true,
+      code: coupon.code,
+      discountType: coupon.discountType,
+      discountValue: coupon.discountValue,
+      discountAmount,
+      description: coupon.description || null,
+      message: coupon.discountType === 'percent'
+        ? `${coupon.discountValue}% off applied!`
+        : `₹${discountAmount.toLocaleString('en-IN')} off applied!`,
+    });
+  } catch {
+    res.status(500).json({ error: 'Failed to validate coupon' });
+  }
+};
+
 export const createBooking = async (req: AuthRequest, res: Response) => {
   try {
     const { uid } = req.user!;
@@ -79,6 +255,7 @@ export const createBooking = async (req: AuthRequest, res: Response) => {
 
     // Apply coupon if provided
     let discountAmount = 0;
+    let appliedCouponId: string | null = null;
     if (couponCode) {
       const couponSnap = await db.collection('coupons')
         .where('code', '==', couponCode.toUpperCase())
@@ -86,11 +263,20 @@ export const createBooking = async (req: AuthRequest, res: Response) => {
         .limit(1)
         .get();
       if (!couponSnap.empty) {
-        const coupon = couponSnap.docs[0].data();
-        discountAmount = coupon.discountType === 'percent'
-          ? Math.floor(estimatedCost * coupon.discountValue / 100)
-          : coupon.discountValue;
+        const couponDoc = couponSnap.docs[0];
+        const coupon = couponDoc.data();
+        appliedCouponId = couponDoc.id;
+        if (coupon.discountType === 'percent') {
+          discountAmount = Math.floor(estimatedCost * coupon.discountValue / 100);
+          if (coupon.maxDiscount && discountAmount > coupon.maxDiscount) discountAmount = coupon.maxDiscount;
+        } else {
+          discountAmount = Math.min(coupon.discountValue, estimatedCost);
+        }
         estimatedCost = Math.max(0, estimatedCost - discountAmount);
+        // Increment usedCount
+        await db.collection('coupons').doc(appliedCouponId).update({
+          usedCount: (coupon.usedCount ?? 0) + 1,
+        });
       }
     }
 

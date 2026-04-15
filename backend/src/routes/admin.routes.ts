@@ -7,6 +7,7 @@ import {
   getCategories, createCategory, updateCategory,
   getServiceAreas, createServiceArea, updateServiceArea,
   getAllEstimates,
+  getCoupons, createCoupon, updateCoupon, deleteCoupon,
 } from '../controllers/admin.controller';
 
 const router = Router();
@@ -33,5 +34,10 @@ router.post('/service-areas', createServiceArea);
 router.put('/service-areas/:id', updateServiceArea);
 
 router.get('/estimates', getAllEstimates);
+
+router.get('/coupons', getCoupons);
+router.post('/coupons', createCoupon);
+router.patch('/coupons/:id', updateCoupon);
+router.delete('/coupons/:id', deleteCoupon);
 
 export default router;

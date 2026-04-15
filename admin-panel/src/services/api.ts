@@ -64,6 +64,9 @@ export const getBookings = (params?: { status?: string; page?: number; limit?: n
   return request(`/admin/bookings?${qs.toString()}`);
 };
 
+export const adminCancelBooking = (id: string, reason: string) =>
+  request(`/bookings/${id}/cancel`, { method: 'PATCH', body: JSON.stringify({ reason }) });
+
 // ─── Estimates ───────────────────────────────────────────────────────────────
 
 export const getEstimates = () => request('/admin/estimates');
@@ -93,3 +96,29 @@ export const updateServiceArea = (id: string, body: { isActive?: boolean; city?:
 
 export const deleteServiceArea = (id: string) =>
   request(`/admin/service-areas/${id}`, { method: 'DELETE' });
+
+// ─── Coupons ──────────────────────────────────────────────────────────────────
+
+export const getCoupons = () => request('/admin/coupons');
+
+export const createCoupon = (body: {
+  code: string;
+  discountType: 'percent' | 'flat';
+  discountValue: number;
+  description?: string;
+  expiryDate?: string;
+  maxUses?: number;
+  minBookingAmount?: number;
+  maxDiscount?: number;
+}) => request('/admin/coupons', { method: 'POST', body: JSON.stringify(body) });
+
+export const updateCoupon = (id: string, body: Partial<{
+  isActive: boolean;
+  description: string;
+  expiryDate: string;
+  maxUses: number;
+  minBookingAmount: number;
+}>) => request(`/admin/coupons/${id}`, { method: 'PATCH', body: JSON.stringify(body) });
+
+export const deleteCoupon = (id: string) =>
+  request(`/admin/coupons/${id}`, { method: 'DELETE' });

@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import '../../config/theme.dart';
 import '../../services/booking_service.dart';
+import '../../services/location_service.dart';
 import '../../models/booking.dart';
+import 'vendor_map_screen.dart';
 
 const _months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 String _fmtDate(DateTime d) => '${d.day} ${_months[d.month - 1]}';
@@ -33,6 +35,7 @@ class BookingsScreen extends StatefulWidget {
 class _BookingsScreenState extends State<BookingsScreen> with SingleTickerProviderStateMixin {
   late TabController _tabController;
   final _service = BookingService();
+  final _locationService = LocationService();
   List<Booking> _allBookings = [];
   bool _isLoading = true;
 
@@ -45,11 +48,18 @@ class _BookingsScreenState extends State<BookingsScreen> with SingleTickerProvid
 
   Future<void> _loadBookings() async {
     final bookings = await _service.getVendorBookings();
-    if (mounted) setState(() { _allBookings = bookings; _isLoading = false; });
+    if (mounted) {
+      setState(() { _allBookings = bookings; _isLoading = false; });
+      // Auto-start GPS broadcasting if any active booking exists
+      final activeBooking = bookings.where((b) => b.isAccepted || b.isArrived || b.isInProgress).firstOrNull;
+      if (activeBooking != null) {
+        _locationService.startBroadcasting(activeBooking.id);
+      }
+    }
   }
 
   List<Booking> _pending() => _allBookings.where((b) => b.isPending).toList();
-  List<Booking> _active() => _allBookings.where((b) => b.isAccepted || b.isInProgress).toList();
+  List<Booking> _active() => _allBookings.where((b) => b.isAccepted || b.isArrived || b.isInProgress).toList();
   List<Booking> _done() => _allBookings.where((b) => b.isCompleted).toList();
   List<Booking> _rejected() => _allBookings.where((b) => b.isRejected).toList();
 
@@ -57,7 +67,6 @@ class _BookingsScreenState extends State<BookingsScreen> with SingleTickerProvid
     switch (action) {
       case 'accept': await _service.acceptBooking(id); break;
       case 'reject': await _service.rejectBooking(id); break;
-      case 'start': await _service.startBooking(id); break;
       case 'complete': await _service.completeBooking(id); break;
     }
     await _loadBookings();
@@ -69,6 +78,15 @@ class _BookingsScreenState extends State<BookingsScreen> with SingleTickerProvid
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       ));
     }
+  }
+
+  Future<void> _openMap(Booking booking) async {
+    await Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => VendorMapScreen(booking: booking)),
+    );
+    // Refresh bookings when returning from map (status may have changed)
+    _loadBookings();
   }
 
   @override
@@ -113,10 +131,10 @@ class _BookingsScreenState extends State<BookingsScreen> with SingleTickerProvid
         : TabBarView(
             controller: _tabController,
             children: [
-              _BookingList(bookings: _pending(), onAction: _doAction, type: 'pending'),
-              _BookingList(bookings: _active(), onAction: _doAction, type: 'active'),
-              _BookingList(bookings: _done(), onAction: _doAction, type: 'done'),
-              _BookingList(bookings: _rejected(), onAction: _doAction, type: 'rejected'),
+              _BookingList(bookings: _pending(), onAction: _doAction, onOpenMap: _openMap, type: 'pending'),
+              _BookingList(bookings: _active(), onAction: _doAction, onOpenMap: _openMap, type: 'active'),
+              _BookingList(bookings: _done(), onAction: _doAction, onOpenMap: _openMap, type: 'done'),
+              _BookingList(bookings: _rejected(), onAction: _doAction, onOpenMap: _openMap, type: 'rejected'),
             ],
           ),
     );
@@ -132,9 +150,10 @@ class _BookingsScreenState extends State<BookingsScreen> with SingleTickerProvid
 class _BookingList extends StatelessWidget {
   final List<Booking> bookings;
   final Future<void> Function(String id, String action) onAction;
+  final Future<void> Function(Booking booking) onOpenMap;
   final String type;
 
-  const _BookingList({required this.bookings, required this.onAction, required this.type});
+  const _BookingList({required this.bookings, required this.onAction, required this.onOpenMap, required this.type});
 
   @override
   Widget build(BuildContext context) {
@@ -165,7 +184,7 @@ class _BookingList extends StatelessWidget {
     return ListView.builder(
       padding: const EdgeInsets.all(16),
       itemCount: bookings.length,
-      itemBuilder: (_, i) => _BookingCard(booking: bookings[i], onAction: onAction),
+      itemBuilder: (_, i) => _BookingCard(booking: bookings[i], onAction: onAction, onOpenMap: onOpenMap),
     );
   }
 }
@@ -173,8 +192,9 @@ class _BookingList extends StatelessWidget {
 class _BookingCard extends StatelessWidget {
   final Booking booking;
   final Future<void> Function(String id, String action) onAction;
+  final Future<void> Function(Booking booking) onOpenMap;
 
-  const _BookingCard({required this.booking, required this.onAction});
+  const _BookingCard({required this.booking, required this.onAction, required this.onOpenMap});
 
   Color get _statusColor {
     switch (booking.status) {
@@ -375,41 +395,42 @@ class _BookingCard extends StatelessWidget {
                 ],
               ),
             ],
-            if (booking.isAccepted) ...[
+            if (booking.isAccepted || booking.isArrived || booking.isInProgress) ...[
               const SizedBox(height: 14),
-              SizedBox(
-                width: double.infinity, height: 44,
-                child: ElevatedButton.icon(
-                  onPressed: () => onAction(booking.id, 'start'),
-                  icon: const Icon(Icons.play_arrow_rounded, size: 20),
-                  label: const Text('Start Work'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppTheme.infoColor,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                  ),
-                ),
-              ),
-            ],
-            if (booking.isInProgress) ...[
-              const SizedBox(height: 14),
-              SizedBox(
-                width: double.infinity, height: 44,
-                child: Container(
-                  decoration: BoxDecoration(
-                    gradient: AppTheme.accentGradient,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: ElevatedButton.icon(
-                    onPressed: () => onAction(booking.id, 'complete'),
-                    icon: const Icon(Icons.check_circle_rounded, size: 20),
-                    label: const Text('Mark Complete'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.transparent,
-                      shadowColor: Colors.transparent,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              Row(
+                children: [
+                  Expanded(
+                    child: SizedBox(
+                      height: 44,
+                      child: ElevatedButton.icon(
+                        onPressed: () => onOpenMap(booking),
+                        icon: const Icon(Icons.map_rounded, size: 18),
+                        label: Text(booking.isAccepted ? 'Navigate' : booking.isArrived ? 'Enter OTP' : 'Map'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppTheme.infoColor,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        ),
+                      ),
                     ),
                   ),
-                ),
+                  if (booking.isInProgress) ...[
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: SizedBox(
+                        height: 44,
+                        child: ElevatedButton.icon(
+                          onPressed: () => onAction(booking.id, 'complete'),
+                          icon: const Icon(Icons.check_circle_rounded, size: 18),
+                          label: const Text('Complete'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppTheme.successColor,
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ],
               ),
             ],
           ],

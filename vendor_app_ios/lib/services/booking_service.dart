@@ -27,11 +27,15 @@ class BookingService {
   Future<void> rejectBooking(String id) => updateBookingStatus(id, 'rejected');
   Future<void> completeBooking(String id) => updateBookingStatus(id, 'completed');
 
-  Future<Map<String, dynamic>> markArrived(String id) async {
-    return await _api.patch('/bookings/$id/arrived', body: {});
+  Future<void> markArrived(String id) async {
+    await _api.patch('/bookings/$id/arrive');
   }
 
   Future<void> verifyStartOtp(String id, String otp) async {
     await _api.patch('/bookings/$id/verify-otp', body: {'otp': otp});
+  }
+
+  Future<void> updateLocation(String bookingId, double lat, double lng) async {
+    await _api.patch('/bookings/$bookingId/location', body: {'lat': lat, 'lng': lng});
   }
 }

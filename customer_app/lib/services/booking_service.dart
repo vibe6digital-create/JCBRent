@@ -50,10 +50,22 @@ class BookingService {
     return Booking.fromJson(response['booking'] ?? response);
   }
 
+  Future<Map<String, dynamic>> validateCoupon(String code, double estimatedCost) async {
+    final response = await _api.post('/bookings/validate-coupon', body: {
+      'code': code.trim().toUpperCase(),
+      'estimatedCost': estimatedCost,
+    });
+    return Map<String, dynamic>.from(response);
+  }
+
   Future<void> rateBooking(String bookingId, double rating, String review) async {
     await _api.patch('/bookings/$bookingId/rate', body: {
       'rating': rating,
       'review': review,
     });
+  }
+
+  Future<void> cancelBooking(String bookingId, String reason) async {
+    await _api.patch('/bookings/$bookingId/cancel', body: {'reason': reason});
   }
 }

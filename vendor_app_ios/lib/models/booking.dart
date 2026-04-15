@@ -14,6 +14,8 @@ class Booking {
   final double rate;
   final double estimatedCost;
   final String workAddress;
+  final double? workLat;
+  final double? workLng;
   final String status;
   final String? notes;
   final double? rating;
@@ -35,6 +37,8 @@ class Booking {
     required this.rate,
     required this.estimatedCost,
     required this.workAddress,
+    this.workLat,
+    this.workLng,
     required this.status,
     this.notes,
     this.rating,
@@ -57,7 +61,9 @@ class Booking {
       rateType: json['rateType'] ?? 'hourly',
       rate: (json['rate'] ?? 0).toDouble(),
       estimatedCost: (json['estimatedCost'] ?? 0).toDouble(),
-      workAddress: json['workAddress'] ?? '',
+      workAddress: json['workAddress'] ?? json['workLocation']?['address'] ?? '',
+      workLat: json['workLat']?.toDouble(),
+      workLng: json['workLng']?.toDouble(),
       status: json['status'] ?? 'pending',
       notes: json['notes'],
       rating: json['rating']?.toDouble(),
@@ -86,6 +92,8 @@ class Booking {
       rate: rate,
       estimatedCost: estimatedCost,
       workAddress: workAddress,
+      workLat: workLat,
+      workLng: workLng,
       status: status ?? this.status,
       notes: notes,
       rating: rating ?? this.rating,
@@ -95,6 +103,7 @@ class Booking {
 
   bool get isPending => status == 'pending';
   bool get isAccepted => status == 'accepted';
+  bool get isArrived => status == 'arrived';
   bool get isInProgress => status == 'in_progress';
   bool get isCompleted => status == 'completed';
   bool get isRejected => status == 'rejected';
@@ -103,6 +112,7 @@ class Booking {
     switch (status) {
       case 'pending': return 'Pending';
       case 'accepted': return 'Accepted';
+      case 'arrived': return 'Arrived';
       case 'in_progress': return 'In Progress';
       case 'completed': return 'Completed';
       case 'rejected': return 'Rejected';

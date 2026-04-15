@@ -1,17 +1,19 @@
 import { NavLink } from 'react-router-dom';
 import {
   LayoutDashboard, Users, Truck, CalendarCheck,
-  Tags, MapPin, ClipboardList, LogOut, Wrench
+  Tags, MapPin, ClipboardList, LogOut, Wrench, Ticket, BarChart2
 } from 'lucide-react';
 
 const navItems = [
   { to: '/', icon: LayoutDashboard, label: 'Dashboard' },
+  { to: '/analytics', icon: BarChart2, label: 'Analytics' },
   { to: '/users', icon: Users, label: 'Users' },
   { to: '/machines', icon: Truck, label: 'Machines' },
   { to: '/bookings', icon: CalendarCheck, label: 'Bookings' },
   { to: '/estimates', icon: ClipboardList, label: 'Estimates' },
   { to: '/categories', icon: Tags, label: 'Categories' },
   { to: '/service-areas', icon: MapPin, label: 'Service Areas' },
+  { to: '/coupons', icon: Ticket, label: 'Coupons' },
 ];
 
 interface SidebarProps {

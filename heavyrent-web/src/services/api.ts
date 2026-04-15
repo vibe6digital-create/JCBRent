@@ -130,6 +130,9 @@ export const verifyStartOtp = (id: string, otp: string) =>
 export const rateBooking = (id: string, body: { rating: number; review?: string }) =>
   request(`/bookings/${id}/rate`, { method: 'PATCH', body: JSON.stringify(body) });
 
+export const cancelBooking = (id: string, reason: string) =>
+  request(`/bookings/${id}/cancel`, { method: 'PATCH', body: JSON.stringify({ reason }) });
+
 // ─── Estimates ────────────────────────────────────────────────────────────────
 
 export const createEstimate = (body: {

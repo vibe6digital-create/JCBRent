@@ -38,7 +38,7 @@ class _BookingsListScreenState extends State<BookingsListScreen> with SingleTick
   List<Booking> get _filteredBookings {
     switch (_tabController.index) {
       case 1: return _bookings.where((b) => ['pending', 'accepted', 'in_progress'].contains(b.status)).toList();
-      case 2: return _bookings.where((b) => ['completed', 'rejected'].contains(b.status)).toList();
+      case 2: return _bookings.where((b) => ['completed', 'rejected', 'cancelled'].contains(b.status)).toList();
       default: return _bookings;
     }
   }
@@ -196,6 +196,7 @@ class _BookingCard extends StatelessWidget {
     switch (status) {
       case 'accepted': return AppTheme.successColor;
       case 'rejected': return AppTheme.errorColor;
+      case 'cancelled': return Colors.red[700]!;
       case 'completed': return Colors.blue;
       case 'in_progress': return Colors.purple;
       default: return Colors.orange;
@@ -206,6 +207,7 @@ class _BookingCard extends StatelessWidget {
     switch (status) {
       case 'accepted': return Icons.check_circle_outline;
       case 'rejected': return Icons.cancel_outlined;
+      case 'cancelled': return Icons.cancel_outlined;
       case 'completed': return Icons.done_all;
       case 'in_progress': return Icons.local_shipping;
       default: return Icons.hourglass_empty;
@@ -224,6 +226,7 @@ class _StatusBadge extends StatelessWidget {
     switch (status) {
       case 'accepted': color = AppTheme.successColor;
       case 'rejected': color = AppTheme.errorColor;
+      case 'cancelled': color = Colors.red[700]!;
       case 'completed': color = Colors.blue;
       case 'in_progress': color = Colors.purple;
       default: color = Colors.orange;

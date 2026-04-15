@@ -186,3 +186,80 @@ export const getAllEstimates = async (_req: AuthRequest, res: Response) => {
     res.status(500).json({ error: 'Failed to fetch estimates' });
   }
 };
+
+// ==================== COUPON MANAGEMENT ====================
+export const getCoupons = async (_req: AuthRequest, res: Response) => {
+  try {
+    const snapshot = await db.collection('coupons').orderBy('createdAt', 'desc').get();
+    res.json({ coupons: snapshot.docs.map(d => d.data()) });
+  } catch {
+    res.status(500).json({ error: 'Failed to fetch coupons' });
+  }
+};
+
+export const createCoupon = async (req: AuthRequest, res: Response) => {
+  try {
+    const { code, discountType, discountValue, description, expiryDate, maxUses, minBookingAmount, maxDiscount } = req.body;
+
+    if (!code || !discountType || discountValue === undefined) {
+      res.status(400).json({ error: 'code, discountType, and discountValue are required' });
+      return;
+    }
+
+    const upperCode = code.trim().toUpperCase();
+
+    // Check for duplicate code
+    const existing = await db.collection('coupons').where('code', '==', upperCode).limit(1).get();
+    if (!existing.empty) {
+      res.status(400).json({ error: 'A coupon with this code already exists' });
+      return;
+    }
+
+    const id = uuidv4();
+    const coupon: Record<string, any> = {
+      id,
+      code: upperCode,
+      discountType,
+      discountValue: Number(discountValue),
+      description: description || '',
+      isActive: true,
+      usedCount: 0,
+      createdAt: Timestamp.now(),
+    };
+    if (expiryDate) coupon.expiryDate = Timestamp.fromDate(new Date(expiryDate));
+    if (maxUses) coupon.maxUses = Number(maxUses);
+    if (minBookingAmount) coupon.minBookingAmount = Number(minBookingAmount);
+    if (maxDiscount) coupon.maxDiscount = Number(maxDiscount);
+
+    await db.collection('coupons').doc(id).set(coupon);
+    res.status(201).json({ coupon });
+  } catch {
+    res.status(500).json({ error: 'Failed to create coupon' });
+  }
+};
+
+export const updateCoupon = async (req: AuthRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+    const couponRef = db.collection('coupons').doc(id);
+    const snap = await couponRef.get();
+    if (!snap.exists) {
+      res.status(404).json({ error: 'Coupon not found' });
+      return;
+    }
+    await couponRef.update({ ...req.body, updatedAt: Timestamp.now() });
+    res.json({ message: 'Coupon updated' });
+  } catch {
+    res.status(500).json({ error: 'Failed to update coupon' });
+  }
+};
+
+export const deleteCoupon = async (req: AuthRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+    await db.collection('coupons').doc(id).delete();
+    res.json({ message: 'Coupon deleted' });
+  } catch {
+    res.status(500).json({ error: 'Failed to delete coupon' });
+  }
+};

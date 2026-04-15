@@ -1,7 +1,7 @@
 export type UserRole = 'customer' | 'vendor';
 export type MachineCategory = 'JCB' | 'Excavator' | 'Pokelane' | 'Crane' | 'Bulldozer' | 'Roller';
 export type ApprovalStatus = 'pending' | 'approved' | 'rejected';
-export type BookingStatus = 'pending' | 'accepted' | 'arrived' | 'in_progress' | 'completed' | 'rejected';
+export type BookingStatus = 'pending' | 'accepted' | 'arrived' | 'in_progress' | 'completed' | 'rejected' | 'cancelled';
 export type RateType = 'hourly' | 'daily' | 'weekly' | 'monthly';
 export type ProfileType = 'corporate' | 'personal';
 export type BookingType = 'instant' | 'scheduled';
@@ -71,6 +71,8 @@ export interface Booking {
   notes?: string;
   rating?: number;
   review?: string;
+  cancellationReason?: string;
+  cancelledBy?: 'customer' | 'admin';
   createdAt: string;
 }
 

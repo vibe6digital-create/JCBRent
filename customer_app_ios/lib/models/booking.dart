@@ -11,15 +11,25 @@ class Booking {
   final String rateType;
   final double rate;
   final double estimatedCost;
-  final String status; // pending, accepted, in_progress, completed, rejected
+  final String status; // pending, accepted, arrived, in_progress, completed, rejected
   final String? notes;
   final String? workAddress;
   final double? workLat;
   final double? workLng;
   final double? vehicleLat;
   final double? vehicleLng;
+  final double? vendorLat;
+  final double? vendorLng;
   final double? rating;
   final String? review;
+  final String? startOtp;
+  final bool isOtpVerified;
+  final String? cancellationReason;
+  final String? cancelledBy;
+  final String? customerName;
+  final String? customerPhone;
+  final String? couponCode;
+  final double? discountAmount;
 
   Booking({
     required this.id,
@@ -41,8 +51,18 @@ class Booking {
     this.workLng,
     this.vehicleLat,
     this.vehicleLng,
+    this.vendorLat,
+    this.vendorLng,
     this.rating,
     this.review,
+    this.startOtp,
+    this.isOtpVerified = false,
+    this.cancellationReason,
+    this.cancelledBy,
+    this.customerName,
+    this.customerPhone,
+    this.couponCode,
+    this.discountAmount,
   });
 
   factory Booking.fromJson(Map<String, dynamic> json) {
@@ -66,8 +86,18 @@ class Booking {
       workLng: json['workLng']?.toDouble(),
       vehicleLat: json['vehicleLat']?.toDouble(),
       vehicleLng: json['vehicleLng']?.toDouble(),
+      vendorLat: (json['vendorLat'] ?? json['vehicleLat'])?.toDouble(),
+      vendorLng: (json['vendorLng'] ?? json['vehicleLng'])?.toDouble(),
       rating: json['rating']?.toDouble(),
       review: json['review'],
+      startOtp: json['startOtp'],
+      isOtpVerified: json['isOtpVerified'] ?? false,
+      cancellationReason: json['cancellationReason'],
+      cancelledBy: json['cancelledBy'],
+      customerName: json['customerName'],
+      customerPhone: json['customerPhone'],
+      couponCode: json['couponCode'],
+      discountAmount: json['discountAmount']?.toDouble(),
     );
   }
 
@@ -98,18 +128,32 @@ class Booking {
       workLng: workLng,
       vehicleLat: vehicleLat ?? this.vehicleLat,
       vehicleLng: vehicleLng ?? this.vehicleLng,
+      vendorLat: this.vendorLat,
+      vendorLng: this.vendorLng,
       rating: rating ?? this.rating,
       review: review ?? this.review,
+      startOtp: startOtp,
+      isOtpVerified: isOtpVerified,
+      cancellationReason: cancellationReason,
+      cancelledBy: cancelledBy,
+      customerName: customerName,
+      customerPhone: customerPhone,
+      couponCode: couponCode,
+      discountAmount: discountAmount,
     );
   }
+
+  bool get isCancellable => status == 'pending' || status == 'accepted';
 
   String get statusLabel {
     switch (status) {
       case 'pending': return 'Pending';
       case 'accepted': return 'Accepted';
       case 'rejected': return 'Rejected';
+      case 'arrived': return 'Arrived';
       case 'in_progress': return 'In Progress';
       case 'completed': return 'Completed';
+      case 'cancelled': return 'Cancelled';
       default: return status;
     }
   }

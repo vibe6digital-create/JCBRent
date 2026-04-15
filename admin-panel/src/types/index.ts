@@ -1,7 +1,7 @@
 export type UserRole = 'customer' | 'vendor' | 'admin';
 export type MachineCategory = 'JCB' | 'Excavator' | 'Pokelane' | 'Crane' | 'Bulldozer' | 'Roller' | 'Other';
 export type ApprovalStatus = 'pending' | 'approved' | 'rejected';
-export type BookingStatus = 'pending' | 'approved' | 'rejected' | 'completed';
+export type BookingStatus = 'pending' | 'approved' | 'accepted' | 'arrived' | 'in_progress' | 'rejected' | 'completed' | 'cancelled';
 export type RateType = 'hourly' | 'daily' | 'weekly' | 'monthly';
 export type ProfileType = 'corporate' | 'personal';
 export type BookingType = 'instant' | 'scheduled';
@@ -62,6 +62,8 @@ export interface Booking {
   workLocation: { address: string; city: string };
   status: BookingStatus;
   notes?: string;
+  cancellationReason?: string;
+  cancelledBy?: 'customer' | 'admin';
   createdAt: string;
 }
 
@@ -93,6 +95,23 @@ export interface ServiceArea {
   city: string;
   state: string;
   isActive: boolean;
+  createdAt: string;
+}
+
+export type DiscountType = 'percent' | 'flat';
+
+export interface Coupon {
+  id: string;
+  code: string;
+  discountType: DiscountType;
+  discountValue: number;
+  description?: string;
+  isActive: boolean;
+  usedCount: number;
+  maxUses?: number;
+  minBookingAmount?: number;
+  maxDiscount?: number;
+  expiryDate?: any;
   createdAt: string;
 }
 

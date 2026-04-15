@@ -9,6 +9,8 @@ import Bookings from './pages/Bookings/Bookings';
 import Estimates from './pages/Estimates/Estimates';
 import Categories from './pages/Categories/Categories';
 import ServiceAreas from './pages/ServiceAreas/ServiceAreas';
+import Coupons from './pages/Coupons/Coupons';
+import Analytics from './pages/Analytics/Analytics';
 import Login from './pages/Auth/Login';
 
 function ProtectedRoutes() {
@@ -44,6 +46,8 @@ function ProtectedRoutes() {
         <Route path="/estimates" element={<Estimates />} />
         <Route path="/categories" element={<Categories />} />
         <Route path="/service-areas" element={<ServiceAreas />} />
+        <Route path="/coupons" element={<Coupons />} />
+        <Route path="/analytics" element={<Analytics />} />
       </Route>
     </Routes>
   );
