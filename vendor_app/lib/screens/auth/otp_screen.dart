@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../config/theme.dart';
 import '../../services/auth_service.dart';
 import '../home/vendor_home_screen.dart';
+import 'profile_setup_screen.dart';
 
 class OTPScreen extends StatefulWidget {
   final String phoneNumber;
@@ -163,28 +164,27 @@ class _OTPScreenState extends State<OTPScreen> {
       final success = await _authService.verifyOTP(widget.verificationId, _otpController.text.trim());
       if (!success) throw Exception('Verification failed');
 
-      // Always ensure the user is registered as vendor in the backend.
-      // If profile exists as 'customer', re-register to upgrade role to 'vendor'.
-      Map<String, dynamic> profile = {};
-      try {
-        profile = await _authService.getProfile();
-      } catch (_) {
-        profile = {};
-      }
-
-      final existingRole = profile['user']?['role'] ?? profile['role'] ?? '';
-      if (existingRole != 'vendor') {
-        // New user OR customer trying vendor app — register/upgrade to vendor
-        final name = profile['user']?['name'] ?? profile['name'] ?? 'Vendor';
-        await _authService.registerVendor(name: name); // let error bubble up if fails
-      }
+      // Check if this vendor already has a named profile set up
+      final alreadySetup = await _authService.hasProfile();
 
       if (mounted) {
-        Navigator.pushAndRemoveUntil(
-          context,
-          MaterialPageRoute(builder: (_) => const VendorHomeScreen()),
-          (route) => false,
-        );
+        if (alreadySetup) {
+          // Returning vendor — go straight to home
+          Navigator.pushAndRemoveUntil(
+            context,
+            MaterialPageRoute(builder: (_) => const VendorHomeScreen()),
+            (route) => false,
+          );
+        } else {
+          // New vendor — collect name, email, accept terms
+          Navigator.pushAndRemoveUntil(
+            context,
+            MaterialPageRoute(
+              builder: (_) => VendorProfileSetupScreen(phoneNumber: widget.phoneNumber),
+            ),
+            (route) => false,
+          );
+        }
       }
     } catch (e) {
       setState(() {

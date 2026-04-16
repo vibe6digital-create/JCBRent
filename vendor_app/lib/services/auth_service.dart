@@ -72,6 +72,18 @@ class AuthService {
     return await _api.get('/auth/profile');
   }
 
+  /// Returns true if the user already has a named profile in the backend.
+  Future<bool> hasProfile() async {
+    try {
+      final response = await _api.get('/auth/profile');
+      final user = response['user'] ?? response;
+      final name = (user['name'] as String?) ?? '';
+      return name.isNotEmpty && name != 'Vendor';
+    } catch (_) {
+      return false;
+    }
+  }
+
   Future<void> updateOnlineStatus(bool isOnline) async {
     await _api.patch('/auth/online-status', body: {'isOnline': isOnline});
   }
