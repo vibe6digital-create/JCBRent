@@ -1,3 +1,4 @@
+import 'dart:typed_data';
 import 'package:intl/intl.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
@@ -12,12 +13,12 @@ class ReceiptService {
 
   Future<void> showReceipt(pw.Context? _, Booking booking) async {
     await Printing.layoutPdf(
-      onLayout: (_) async => _buildPdf(booking),
+      onLayout: (_) async => await _buildPdf(booking),
       name: 'HeavyRent-Receipt-${booking.id.substring(0, 8).toUpperCase()}',
     );
   }
 
-  Future<List<int>> _buildPdf(Booking booking) async {
+  Future<Uint8List> _buildPdf(Booking booking) async {
     final doc = pw.Document(title: 'HeavyRent Receipt');
 
     final invoiceNo = 'HR-${booking.id.substring(0, 8).toUpperCase()}';
@@ -233,7 +234,7 @@ class ReceiptService {
       ),
     );
 
-    return doc.save();
+    return Uint8List.fromList(await doc.save());
   }
 
   pw.Widget _partyBox({

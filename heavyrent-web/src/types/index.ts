@@ -67,6 +67,9 @@ export interface Booking {
   discountAmount?: number;
   workLocation: string;
   workCity: string;
+  vendorLat?: number;
+  vendorLng?: number;
+  vendorLocationUpdatedAt?: string;
   status: BookingStatus;
   notes?: string;
   rating?: number;

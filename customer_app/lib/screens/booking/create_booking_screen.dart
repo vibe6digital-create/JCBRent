@@ -1,5 +1,9 @@
+import 'dart:async';
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart';
+import '../../config/app_config.dart';
 import '../../config/theme.dart';
 import '../../models/machine.dart';
 import '../../services/booking_service.dart';
@@ -31,6 +35,10 @@ class _CreateBookingScreenState extends State<CreateBookingScreen> {
   bool _couponApplied = false;
   double _couponDiscount = 0;
   String _couponMessage = '';
+
+  // Address autocomplete
+  List<String> _addressSuggestions = [];
+  Timer? _debounce;
 
   // Duration quantity for weekly/monthly
   int _durationQty = 1;
@@ -66,6 +74,32 @@ class _CreateBookingScreenState extends State<CreateBookingScreen> {
       return DateTime(_startDate.year, _startDate.month + _durationQty, _startDate.day);
     }
     return _endDate;
+  }
+
+  Future<void> _fetchAddressSuggestions(String input) async {
+    if (input.length < 3) {
+      setState(() => _addressSuggestions = []);
+      return;
+    }
+    try {
+      final url = Uri.parse(
+        'https://maps.googleapis.com/maps/api/place/autocomplete/json'
+        '?input=${Uri.encodeComponent(input)}'
+        '&components=country:in'
+        '&key=${AppConfig.googleMapsApiKey}',
+      );
+      final resp = await http.get(url).timeout(const Duration(seconds: 5));
+      final data = jsonDecode(resp.body) as Map<String, dynamic>;
+      final predictions = data['predictions'] as List? ?? [];
+      if (mounted) {
+        setState(() {
+          _addressSuggestions = predictions
+              .map((p) => p['description'] as String)
+              .take(5)
+              .toList();
+        });
+      }
+    } catch (_) {}
   }
 
   @override
@@ -345,16 +379,77 @@ class _CreateBookingScreenState extends State<CreateBookingScreen> {
             if (_currentStep == 1) ...[
               const Text('Work Location', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
               const SizedBox(height: 8),
-              TextField(
-                controller: _addressController,
-                decoration: InputDecoration(
-                  hintText: 'Enter complete work address',
-                  prefixIcon: const Icon(Icons.location_on),
-                  filled: true,
-                  fillColor: Colors.white,
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                ),
-                maxLines: 2,
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  TextField(
+                    controller: _addressController,
+                    decoration: InputDecoration(
+                      hintText: 'Type work address...',
+                      prefixIcon: const Icon(Icons.location_on),
+                      suffixIcon: _addressController.text.isNotEmpty
+                          ? IconButton(
+                              icon: const Icon(Icons.clear, size: 18),
+                              onPressed: () {
+                                _addressController.clear();
+                                setState(() => _addressSuggestions = []);
+                              },
+                            )
+                          : null,
+                      filled: true,
+                      fillColor: Colors.white,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(color: Colors.grey[300]!),
+                      ),
+                    ),
+                    onChanged: (v) {
+                      _debounce?.cancel();
+                      _debounce = Timer(const Duration(milliseconds: 400), () {
+                        _fetchAddressSuggestions(v);
+                      });
+                      setState(() {}); // refresh clear button
+                    },
+                  ),
+                  if (_addressSuggestions.isNotEmpty)
+                    Container(
+                      margin: const EdgeInsets.only(top: 2),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: Colors.grey[300]!),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withAlpha(15),
+                            blurRadius: 8, offset: const Offset(0, 4)),
+                        ],
+                      ),
+                      child: Column(
+                        children: _addressSuggestions.map((suggestion) => InkWell(
+                          onTap: () {
+                            _addressController.text = suggestion;
+                            setState(() => _addressSuggestions = []);
+                          },
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                            child: Row(
+                              children: [
+                                const Icon(Icons.place_outlined, size: 18, color: Colors.grey),
+                                const SizedBox(width: 10),
+                                Expanded(
+                                  child: Text(suggestion,
+                                    style: const TextStyle(fontSize: 14),
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        )).toList(),
+                      ),
+                    ),
+                ],
               ),
               const SizedBox(height: 16),
 
@@ -676,6 +771,7 @@ class _CreateBookingScreenState extends State<CreateBookingScreen> {
 
   @override
   void dispose() {
+    _debounce?.cancel();
     _addressController.dispose();
     _notesController.dispose();
     _couponController.dispose();

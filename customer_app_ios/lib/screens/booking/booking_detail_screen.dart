@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import '../../config/theme.dart';
 import '../../models/booking.dart';
@@ -27,6 +28,126 @@ class _BookingDetailScreenState extends State<BookingDetailScreen> {
   }
 
   Future<void> _showCancelDialog() async {
+    final reasonController = TextEditingController();
+    const reasons = [
+      'Change of plans',
+      'Found a better option',
+      'Work postponed',
+      'Wrong booking details',
+      'Other',
+    ];
+    String selectedReason = reasons.first;
+
+    final confirmed = await showModalBottomSheet<bool>(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (ctx, setModalState) => Padding(
+            padding: EdgeInsets.fromLTRB(24, 20, 24, MediaQuery.of(ctx).viewInsets.bottom + 24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Center(
+                  child: Container(
+                    width: 40, height: 4,
+                    decoration: BoxDecoration(color: Colors.grey[300], borderRadius: BorderRadius.circular(2)),
+                  ),
+                ),
+                const SizedBox(height: 20),
+                const Row(
+                  children: [
+                    Icon(Icons.cancel_outlined, color: Colors.red, size: 22),
+                    SizedBox(width: 10),
+                    Text('Cancel Booking', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                  ],
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  'This action cannot be undone. Please select a reason.',
+                  style: TextStyle(color: Colors.grey[600], fontSize: 13),
+                ),
+                const SizedBox(height: 20),
+                ...reasons.map((r) => RadioListTile<String>(
+                  value: r,
+                  groupValue: selectedReason,
+                  onChanged: (v) => setModalState(() => selectedReason = v!),
+                  title: Text(r, style: const TextStyle(fontSize: 14)),
+                  dense: true,
+                  contentPadding: EdgeInsets.zero,
+                  activeColor: AppTheme.primaryColor,
+                )),
+                if (selectedReason == 'Other') ...[
+                  const SizedBox(height: 8),
+                  TextField(
+                    controller: reasonController,
+                    maxLines: 2,
+                    autofocus: true,
+                    decoration: InputDecoration(
+                      hintText: 'Please specify your reason...',
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                    ),
+                  ),
+                ],
+                const SizedBox(height: 20),
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton(
+                        onPressed: () => Navigator.pop(ctx, false),
+                        style: OutlinedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        ),
+                        child: const Text('Keep Booking'),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: ElevatedButton(
+                        onPressed: () {
+                          final reason = selectedReason == 'Other'
+                              ? reasonController.text.trim()
+                              : selectedReason;
+                          if (reason.isEmpty) return;
+                          Navigator.pop(ctx, true);
+                          // Store reason for use after dialog closes
+                          reasonController.text = reason;
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.red,
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        ),
+                        child: const Text('Cancel Booking', style: TextStyle(fontWeight: FontWeight.bold)),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+
+    if (confirmed == true && mounted) {
+      final reason = reasonController.text.isEmpty ? selectedReason : reasonController.text;
+      await _performCancel(reason);
+    }
+  }
+
+  // We need a different approach — store the selected reason outside the dialog
+  String _selectedCancelReason = 'Change of plans';
+
+  Future<void> _showCancelDialogV2() async {
+    _selectedCancelReason = 'Change of plans';
+    final reasonController = TextEditingController();
     const reasons = [
       'Change of plans',
       'Found a better option',
@@ -43,7 +164,6 @@ class _BookingDetailScreenState extends State<BookingDetailScreen> {
       ),
       builder: (ctx) {
         String selectedReason = reasons.first;
-        final reasonController = TextEditingController();
         return StatefulBuilder(
           builder: (ctx, setModalState) => Padding(
             padding: EdgeInsets.fromLTRB(24, 20, 24, MediaQuery.of(ctx).viewInsets.bottom + 24),
@@ -143,6 +263,7 @@ class _BookingDetailScreenState extends State<BookingDetailScreen> {
     try {
       await _bookingService.cancelBooking(_booking.id, reason);
       if (mounted) {
+        // Refresh booking from server to get updated status
         final updated = await _bookingService.getBookingById(_booking.id);
         setState(() => _booking = updated);
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
@@ -172,12 +293,12 @@ class _BookingDetailScreenState extends State<BookingDetailScreen> {
       appBar: AppBar(
         title: const Text('Booking Details'),
         actions: [
-          if (_booking.status == 'in_progress')
+          if (_booking.status == 'in_progress' || _booking.status == 'arrived')
             TextButton.icon(
               onPressed: () => Navigator.push(context,
                 MaterialPageRoute(builder: (_) => LiveTrackingScreen(booking: _booking))),
               icon: const Icon(Icons.location_on, color: Colors.white),
-              label: const Text('Track', style: TextStyle(color: Colors.white)),
+              label: const Text('Track / OTP', style: TextStyle(color: Colors.white)),
             ),
         ],
       ),
@@ -213,7 +334,7 @@ class _BookingDetailScreenState extends State<BookingDetailScreen> {
             ),
             const SizedBox(height: 20),
 
-            // Cancellation reason box
+            // Cancellation info box
             if (_booking.status == 'cancelled' && _booking.cancellationReason != null) ...[
               Container(
                 padding: const EdgeInsets.all(14),
@@ -304,7 +425,7 @@ class _BookingDetailScreenState extends State<BookingDetailScreen> {
             ),
             const SizedBox(height: 16),
 
-            // Schedule & Location
+            // Booking details
             const Text('Schedule & Location', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
             const SizedBox(height: 8),
             Card(
@@ -379,6 +500,102 @@ class _BookingDetailScreenState extends State<BookingDetailScreen> {
             ],
 
             // Action buttons
+            if (_booking.status == 'arrived') ...[
+              Container(
+                width: double.infinity,
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFF00897B), Color(0xFF00695C)],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.teal.withAlpha(80),
+                      blurRadius: 12, offset: const Offset(0, 4)),
+                  ],
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.all(20),
+                  child: Column(
+                    children: [
+                      const Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.directions_car, color: Colors.white, size: 22),
+                          SizedBox(width: 8),
+                          Text('Machine Has Arrived!',
+                            style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white, fontSize: 18)),
+                        ],
+                      ),
+                      const SizedBox(height: 6),
+                      const Text(
+                        'Show this OTP to the operator to start work',
+                        style: TextStyle(color: Colors.white70, fontSize: 13),
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 16),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Column(
+                          children: [
+                            const Text('YOUR START OTP',
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.bold,
+                                letterSpacing: 2,
+                                color: Colors.grey,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              _booking.startOtp ?? '----',
+                              style: const TextStyle(
+                                fontSize: 48,
+                                fontWeight: FontWeight.bold,
+                                letterSpacing: 16,
+                                color: Color(0xFF00695C),
+                              ),
+                            ),
+                            const SizedBox(height: 12),
+                            SizedBox(
+                              width: double.infinity,
+                              child: OutlinedButton.icon(
+                                onPressed: () {
+                                  Clipboard.setData(ClipboardData(
+                                    text: _booking.startOtp ?? ''));
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text('OTP copied!'),
+                                      duration: Duration(seconds: 2),
+                                      behavior: SnackBarBehavior.floating,
+                                    ),
+                                  );
+                                },
+                                icon: const Icon(Icons.copy, size: 16),
+                                label: const Text('Copy OTP'),
+                                style: OutlinedButton.styleFrom(
+                                  foregroundColor: const Color(0xFF00695C),
+                                  side: const BorderSide(color: Color(0xFF00695C)),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(8)),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
+            ],
             if (_booking.status == 'in_progress') ...[
               SizedBox(
                 width: double.infinity,
@@ -432,7 +649,7 @@ class _BookingDetailScreenState extends State<BookingDetailScreen> {
               const SizedBox(height: 12),
             ],
 
-            // Cancel button
+            // Cancel button — only for pending/accepted
             if (_booking.isCancellable) ...[
               _isCancelling
                 ? const Center(child: Padding(
@@ -443,7 +660,7 @@ class _BookingDetailScreenState extends State<BookingDetailScreen> {
                     width: double.infinity,
                     height: 52,
                     child: OutlinedButton.icon(
-                      onPressed: _showCancelDialog,
+                      onPressed: _showCancelDialogV2,
                       icon: const Icon(Icons.cancel_outlined, color: Colors.red),
                       label: const Text('Cancel Booking',
                         style: TextStyle(color: Colors.red, fontSize: 16, fontWeight: FontWeight.w600)),
@@ -468,6 +685,7 @@ class _BookingDetailScreenState extends State<BookingDetailScreen> {
       case 'cancelled': return Colors.red[700]!;
       case 'completed': return Colors.blue;
       case 'in_progress': return Colors.purple;
+      case 'arrived': return Colors.teal;
       default: return Colors.orange;
     }
   }
@@ -479,6 +697,7 @@ class _BookingDetailScreenState extends State<BookingDetailScreen> {
       case 'cancelled': return Icons.cancel;
       case 'completed': return Icons.done_all;
       case 'in_progress': return Icons.local_shipping;
+      case 'arrived': return Icons.location_on;
       default: return Icons.hourglass_empty;
     }
   }
@@ -489,7 +708,8 @@ class _BookingDetailScreenState extends State<BookingDetailScreen> {
       case 'accepted': return 'Vendor has accepted! Machine will arrive on schedule';
       case 'rejected': return 'Vendor could not accept this booking';
       case 'cancelled': return 'This booking was cancelled';
-      case 'in_progress': return 'Machine is on its way / Work is in progress';
+      case 'arrived': return 'Machine has arrived! Share your OTP with the operator to start work';
+      case 'in_progress': return 'Work is in progress';
       case 'completed': return 'Work has been completed successfully';
       default: return '';
     }
@@ -505,11 +725,12 @@ class _StatusTimeline extends StatelessWidget {
     final steps = [
       {'key': 'pending', 'label': 'Booking Requested', 'icon': Icons.send},
       {'key': 'accepted', 'label': 'Vendor Accepted', 'icon': Icons.check_circle},
+      {'key': 'arrived', 'label': 'Machine Arrived', 'icon': Icons.location_on},
       {'key': 'in_progress', 'label': 'Work In Progress', 'icon': Icons.local_shipping},
       {'key': 'completed', 'label': 'Completed', 'icon': Icons.done_all},
     ];
 
-    final statusOrder = ['pending', 'accepted', 'in_progress', 'completed'];
+    final statusOrder = ['pending', 'accepted', 'arrived', 'in_progress', 'completed'];
     final currentIndex = statusOrder.indexOf(currentStatus);
     final isRejected = currentStatus == 'rejected';
     final isCancelled = currentStatus == 'cancelled';

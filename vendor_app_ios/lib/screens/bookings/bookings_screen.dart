@@ -35,7 +35,6 @@ class BookingsScreen extends StatefulWidget {
 class _BookingsScreenState extends State<BookingsScreen> with SingleTickerProviderStateMixin {
   late TabController _tabController;
   final _service = BookingService();
-  final _locationService = LocationService();
   List<Booking> _allBookings = [];
   bool _isLoading = true;
 
@@ -46,15 +45,24 @@ class _BookingsScreenState extends State<BookingsScreen> with SingleTickerProvid
     _loadBookings();
   }
 
+  void _openMap(Booking booking) {
+    Navigator.push(context, MaterialPageRoute(
+      builder: (_) => VendorMapScreen(booking: booking),
+    )).then((_) => _loadBookings()); // Refresh after returning
+  }
+
   Future<void> _loadBookings() async {
-    final bookings = await _service.getVendorBookings();
-    if (mounted) {
-      setState(() { _allBookings = bookings; _isLoading = false; });
-      // Auto-start GPS broadcasting if any active booking exists
-      final activeBooking = bookings.where((b) => b.isAccepted || b.isArrived || b.isInProgress).firstOrNull;
-      if (activeBooking != null) {
-        _locationService.startBroadcasting(activeBooking.id);
+    try {
+      final bookings = await _service.getVendorBookings();
+      if (mounted) setState(() { _allBookings = bookings; _isLoading = false; });
+
+      // Auto-start GPS broadcasting if there's an active booking
+      final active = bookings.where((b) => b.isAccepted || b.isArrived || b.isInProgress).toList();
+      if (active.isNotEmpty) {
+        LocationService().startBroadcasting(active.first.id);
       }
+    } catch (_) {
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
@@ -64,6 +72,24 @@ class _BookingsScreenState extends State<BookingsScreen> with SingleTickerProvid
   List<Booking> _rejected() => _allBookings.where((b) => b.isRejected).toList();
 
   Future<void> _doAction(String id, String action) async {
+    if (action == 'arrive') {
+      await _service.markArrived(id);
+      await _loadBookings();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Arrival marked. OTP sent to customer.'),
+          backgroundColor: AppTheme.successColor,
+          behavior: SnackBarBehavior.floating,
+        ));
+      }
+      return;
+    }
+
+    if (action == 'verify_otp') {
+      await _showOtpDialog(id);
+      return;
+    }
+
     switch (action) {
       case 'accept': await _service.acceptBooking(id); break;
       case 'reject': await _service.rejectBooking(id); break;
@@ -80,13 +106,76 @@ class _BookingsScreenState extends State<BookingsScreen> with SingleTickerProvid
     }
   }
 
-  Future<void> _openMap(Booking booking) async {
-    await Navigator.push(
-      context,
-      MaterialPageRoute(builder: (_) => VendorMapScreen(booking: booking)),
+  Future<void> _showOtpDialog(String bookingId) async {
+    final otpController = TextEditingController();
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Text('Enter Start OTP'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text('Ask the customer for their 4-digit OTP to start work.',
+              style: TextStyle(color: Colors.grey[600], fontSize: 14)),
+            const SizedBox(height: 16),
+            TextField(
+              controller: otpController,
+              keyboardType: TextInputType.number,
+              maxLength: 4,
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold, letterSpacing: 8),
+              decoration: InputDecoration(
+                counterText: '',
+                hintText: '----',
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(14),
+                  borderSide: const BorderSide(color: AppTheme.accentColor, width: 2),
+                ),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppTheme.successColor,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
+            child: const Text('Start Work'),
+          ),
+        ],
+      ),
     );
-    // Refresh bookings when returning from map (status may have changed)
-    _loadBookings();
+
+    if (confirmed == true && otpController.text.length == 4) {
+      try {
+        await _service.verifyStartOtp(bookingId, otpController.text);
+        await _loadBookings();
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content: Text('OTP verified! Work has started.'),
+            backgroundColor: AppTheme.successColor,
+            behavior: SnackBarBehavior.floating,
+          ));
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text(e.toString().replaceFirst('Exception: ', '')),
+            backgroundColor: AppTheme.errorColor,
+            behavior: SnackBarBehavior.floating,
+          ));
+        }
+      }
+    }
+    otpController.dispose();
   }
 
   @override
@@ -150,7 +239,7 @@ class _BookingsScreenState extends State<BookingsScreen> with SingleTickerProvid
 class _BookingList extends StatelessWidget {
   final List<Booking> bookings;
   final Future<void> Function(String id, String action) onAction;
-  final Future<void> Function(Booking booking) onOpenMap;
+  final void Function(Booking b) onOpenMap;
   final String type;
 
   const _BookingList({required this.bookings, required this.onAction, required this.onOpenMap, required this.type});
@@ -192,7 +281,7 @@ class _BookingList extends StatelessWidget {
 class _BookingCard extends StatelessWidget {
   final Booking booking;
   final Future<void> Function(String id, String action) onAction;
-  final Future<void> Function(Booking booking) onOpenMap;
+  final void Function(Booking b) onOpenMap;
 
   const _BookingCard({required this.booking, required this.onAction, required this.onOpenMap});
 
@@ -200,6 +289,7 @@ class _BookingCard extends StatelessWidget {
     switch (booking.status) {
       case 'pending': return AppTheme.warningColor;
       case 'accepted': return AppTheme.infoColor;
+      case 'arrived': return AppTheme.warningColor;
       case 'in_progress': return AppTheme.successColor;
       case 'completed': return AppTheme.infoColor;
       case 'rejected': return AppTheme.errorColor;
@@ -395,7 +485,7 @@ class _BookingCard extends StatelessWidget {
                 ],
               ),
             ],
-            if (booking.isAccepted || booking.isArrived || booking.isInProgress) ...[
+            if (booking.isAccepted) ...[
               const SizedBox(height: 14),
               Row(
                 children: [
@@ -403,9 +493,9 @@ class _BookingCard extends StatelessWidget {
                     child: SizedBox(
                       height: 44,
                       child: ElevatedButton.icon(
-                        onPressed: () => onOpenMap(booking),
-                        icon: const Icon(Icons.map_rounded, size: 18),
-                        label: Text(booking.isAccepted ? 'Navigate' : booking.isArrived ? 'Enter OTP' : 'Map'),
+                        onPressed: () => onAction(booking.id, 'arrive'),
+                        icon: const Icon(Icons.location_on_rounded, size: 18),
+                        label: const Text('Mark Arrived'),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: AppTheme.infoColor,
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -413,23 +503,93 @@ class _BookingCard extends StatelessWidget {
                       ),
                     ),
                   ),
-                  if (booking.isInProgress) ...[
-                    const SizedBox(width: 10),
+                  const SizedBox(width: 10),
+                  SizedBox(
+                    height: 44,
+                    child: OutlinedButton.icon(
+                      onPressed: () => onOpenMap(booking),
+                      icon: const Icon(Icons.map_rounded, size: 18, color: AppTheme.primaryColor),
+                      label: const Text('Navigate', style: TextStyle(color: AppTheme.primaryColor)),
+                      style: OutlinedButton.styleFrom(
+                        side: const BorderSide(color: AppTheme.primaryColor, width: 1.5),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+            if (booking.isArrived) ...[
+              const SizedBox(height: 14),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: AppTheme.warningColor.withAlpha(15),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: AppTheme.warningColor.withAlpha(60)),
+                ),
+                child: const Row(
+                  children: [
+                    Icon(Icons.info_outline_rounded, color: AppTheme.warningColor, size: 18),
+                    SizedBox(width: 8),
                     Expanded(
-                      child: SizedBox(
-                        height: 44,
-                        child: ElevatedButton.icon(
-                          onPressed: () => onAction(booking.id, 'complete'),
-                          icon: const Icon(Icons.check_circle_rounded, size: 18),
-                          label: const Text('Complete'),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: AppTheme.successColor,
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                          ),
+                      child: Text('Waiting for customer OTP to start work',
+                        style: TextStyle(color: AppTheme.warningColor, fontSize: 13, fontWeight: FontWeight.w500)),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 10),
+              // Step 2: Enter OTP from customer to start work
+              SizedBox(
+                width: double.infinity, height: 44,
+                child: ElevatedButton.icon(
+                  onPressed: () => onAction(booking.id, 'verify_otp'),
+                  icon: const Icon(Icons.lock_open_rounded, size: 20),
+                  label: const Text('Enter Customer OTP'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppTheme.successColor,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                ),
+              ),
+            ],
+            if (booking.isInProgress) ...[
+              const SizedBox(height: 14),
+              Row(
+                children: [
+                  Expanded(
+                    child: Container(
+                      height: 44,
+                      decoration: BoxDecoration(
+                        gradient: AppTheme.accentGradient,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: ElevatedButton.icon(
+                        onPressed: () => onAction(booking.id, 'complete'),
+                        icon: const Icon(Icons.check_circle_rounded, size: 18),
+                        label: const Text('Mark Complete'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.transparent,
+                          shadowColor: Colors.transparent,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                         ),
                       ),
                     ),
-                  ],
+                  ),
+                  const SizedBox(width: 10),
+                  SizedBox(
+                    height: 44,
+                    child: OutlinedButton.icon(
+                      onPressed: () => onOpenMap(booking),
+                      icon: const Icon(Icons.map_rounded, size: 18, color: AppTheme.primaryColor),
+                      label: const Text('Map', style: TextStyle(color: AppTheme.primaryColor)),
+                      style: OutlinedButton.styleFrom(
+                        side: const BorderSide(color: AppTheme.primaryColor, width: 1.5),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
+                    ),
+                  ),
                 ],
               ),
             ],

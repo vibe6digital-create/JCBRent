@@ -6,7 +6,8 @@ import '../machine/machine_detail_screen.dart';
 
 class SearchScreen extends StatefulWidget {
   final String? initialCategory;
-  const SearchScreen({super.key, this.initialCategory});
+  final String? initialCity;
+  const SearchScreen({super.key, this.initialCategory, this.initialCity});
 
   @override
   State<SearchScreen> createState() => _SearchScreenState();
@@ -21,13 +22,24 @@ class _SearchScreenState extends State<SearchScreen> {
   String? _selectedCategory;
   String _sortBy = 'price_asc';
 
-  final _categories = ['All', 'JCB', 'Excavator', 'Pokelane', 'Crane', 'Bulldozer', 'Roller'];
+  List<String> _categories = ['All'];
 
   @override
   void initState() {
     super.initState();
     _selectedCategory = widget.initialCategory;
+    if (widget.initialCity != null) {
+      _searchController.text = widget.initialCity!;
+    }
+    _loadCategories();
     _searchMachines();
+  }
+
+  Future<void> _loadCategories() async {
+    try {
+      final cats = await _machineService.getCategories();
+      if (mounted) setState(() => _categories = ['All', ...cats]);
+    } catch (_) {}
   }
 
   Future<void> _searchMachines() async {
@@ -213,7 +225,25 @@ class _MachineCard extends StatelessWidget {
                 child: machine.images.isNotEmpty
                     ? ClipRRect(
                         borderRadius: BorderRadius.circular(12),
-                        child: Image.network(machine.images.first, fit: BoxFit.cover))
+                        child: Image.network(
+                          machine.images.first,
+                          fit: BoxFit.cover,
+                          loadingBuilder: (_, child, progress) {
+                            if (progress == null) return child;
+                            return Container(
+                              color: AppTheme.primaryColor.withAlpha(10),
+                              child: const Center(
+                                child: SizedBox(width: 24, height: 24,
+                                  child: CircularProgressIndicator(strokeWidth: 2)),
+                              ),
+                            );
+                          },
+                          errorBuilder: (_, __, ___) => Container(
+                            color: AppTheme.primaryColor.withAlpha(15),
+                            child: Icon(_getCategoryIcon(machine.category),
+                              size: 40, color: AppTheme.primaryColor),
+                          ),
+                        ))
                     : Icon(_getCategoryIcon(machine.category), size: 40, color: AppTheme.primaryColor),
               ),
               const SizedBox(width: 12),

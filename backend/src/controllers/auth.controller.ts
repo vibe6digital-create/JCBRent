@@ -162,12 +162,18 @@ export const createOrUpdateUser = async (req: AuthRequest, res: Response) => {
     const userDoc = await userRef.get();
 
     if (userDoc.exists) {
+      const existingRole = userDoc.data()?.role;
       const updateData: Record<string, unknown> = { updatedAt: Timestamp.now() };
       if (name) updateData.name = name;
       if (email) updateData.email = email;
       if (city) updateData.city = city;
       if (state) updateData.state = state;
       if (profileType) updateData.profileType = profileType;
+      // Allow role upgrade: customer → vendor (never downgrade vendor → customer)
+      if (role === 'vendor' && existingRole !== 'vendor') {
+        updateData.role = 'vendor';
+        updateData.isOnline = false;
+      }
       await userRef.update(updateData);
       const updated = await userRef.get();
       res.json({ user: { uid, ...updated.data() } });

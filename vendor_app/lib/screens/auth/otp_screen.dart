@@ -163,14 +163,20 @@ class _OTPScreenState extends State<OTPScreen> {
       final success = await _authService.verifyOTP(widget.verificationId, _otpController.text.trim());
       if (!success) throw Exception('Verification failed');
 
-      // Register vendor profile if first login, otherwise just get profile
+      // Always ensure the user is registered as vendor in the backend.
+      // If profile exists as 'customer', re-register to upgrade role to 'vendor'.
+      Map<String, dynamic> profile = {};
       try {
-        await _authService.getProfile();
+        profile = await _authService.getProfile();
       } catch (_) {
-        // Profile not found — register as new vendor
-        try {
-          await _authService.registerVendor(name: 'Vendor');
-        } catch (_) {}
+        profile = {};
+      }
+
+      final existingRole = profile['user']?['role'] ?? profile['role'] ?? '';
+      if (existingRole != 'vendor') {
+        // New user OR customer trying vendor app — register/upgrade to vendor
+        final name = profile['user']?['name'] ?? profile['name'] ?? 'Vendor';
+        await _authService.registerVendor(name: name); // let error bubble up if fails
       }
 
       if (mounted) {

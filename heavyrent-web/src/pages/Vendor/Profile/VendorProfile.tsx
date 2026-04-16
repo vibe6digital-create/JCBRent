@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../../context/AuthContext';
 import { Phone, Mail, MapPin, Truck, Star, CheckCircle, LogOut, Wifi, WifiOff, Edit2 } from 'lucide-react';
-import { getVendorBookings, getVendorEarnings, toggleVendorOnline } from '../../../services/api';
+import { getVendorBookings, getVendorEarnings, updateOnlineStatus } from '../../../services/api';
 import type { Booking } from '../../../types';
 import toast from 'react-hot-toast';
 
@@ -34,7 +34,7 @@ export default function VendorProfile() {
     setTogglingOnline(true);
     const next = !isOnline;
     try {
-      await toggleVendorOnline(next);
+      await updateOnlineStatus(next);
       setIsOnline(next);
       toast.success(next ? 'You are now Online — accepting bookings' : 'You are now Offline — not accepting bookings');
     } catch {

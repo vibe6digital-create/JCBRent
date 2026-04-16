@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../config/theme.dart';
+import '../../services/auth_service.dart';
 import '../../services/booking_service.dart';
 import '../../services/machine_service.dart';
 import '../../models/booking.dart';
@@ -72,7 +73,6 @@ String _formatCurrency(double amount) {
 }
 
 const _months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-
 String _formatDate(DateTime d) => '${d.day} ${_months[d.month - 1]}';
 
 class _DashboardBody extends StatefulWidget {
@@ -85,8 +85,16 @@ class _DashboardBody extends StatefulWidget {
 class _DashboardBodyState extends State<_DashboardBody> {
   final _bookingService = BookingService();
   final _machineService = MachineService();
-  List<Booking> _recentBookings = [];
+  final _authService = AuthService();
+
+  List<Booking> _allBookings = [];
+  int _machineCount = 0;
+  Map<String, dynamic> _earnings = {};
+  String _vendorName = '';
   bool _isLoading = true;
+  String? _error;
+  bool _isOnline = false;
+  bool _isUpdatingStatus = false;
 
   @override
   void initState() {
@@ -95,20 +103,110 @@ class _DashboardBodyState extends State<_DashboardBody> {
   }
 
   Future<void> _loadData() async {
-    await _bookingService.getVendorBookings();
-    await _machineService.getMyMachines();
-    if (mounted) {
-      setState(() {
-        _recentBookings = _bookingService.getRecentBookings();
-        _isLoading = false;
-      });
+    setState(() { _isLoading = true; _error = null; });
+
+    // Fetch each piece independently — one failure doesn't kill the dashboard
+    List<Booking> bookings = [];
+    List machines = [];
+    Map<String, dynamic> profile = {};
+    Map<String, dynamic> earnings = {};
+
+    String? criticalError;
+
+    try {
+      profile = await _authService.getProfile();
+    } catch (e) {
+      final msg = e.toString();
+      // User authenticated but no Firestore doc yet — auto-register as vendor
+      if (msg.contains('User not found') || msg.contains('404')) {
+        try {
+          await _authService.registerVendor(name: 'Vendor');
+          profile = await _authService.getProfile();
+        } catch (regError) {
+          criticalError = 'Registration failed. Please sign out and log in again.';
+        }
+      } else {
+        criticalError = msg;
+      }
+    }
+
+    // If profile still fails (token issue, network, etc.), show error
+    if (criticalError != null) {
+      setState(() { _error = criticalError; _isLoading = false; });
+      return;
+    }
+
+    // Non-critical calls — failures show defaults (0 / empty list)
+    try {
+      await Future.wait([
+        _bookingService.getVendorBookings()
+            .then((v) => bookings = v)
+            .catchError((e) { bookings = []; }),
+        _machineService.getMyMachines()
+            .then((v) => machines = v)
+            .catchError((e) { machines = []; }),
+        _bookingService.getEarningsSummary()
+            .then((v) => earnings = v)
+            .catchError((e) { earnings = {}; }),
+      ]);
+    } catch (_) {
+      // Future.wait error — individual errors already handled above
+    }
+
+    final sorted = List<Booking>.from(bookings)
+      ..sort((a, b) => b.startDate.compareTo(a.startDate));
+
+    setState(() {
+      _allBookings = sorted;
+      _machineCount = machines.length;
+      _vendorName = profile['user']?['name'] ?? profile['name'] ?? '';
+      _isOnline = profile['user']?['isOnline'] ?? profile['isOnline'] ?? false;
+      _earnings = earnings;
+      _isLoading = false;
+    });
+  }
+
+  Future<void> _toggleOnlineStatus() async {
+    setState(() => _isUpdatingStatus = true);
+    try {
+      await _authService.updateOnlineStatus(!_isOnline);
+      setState(() => _isOnline = !_isOnline);
+    } catch (_) {
+      // revert on error
+    } finally {
+      setState(() => _isUpdatingStatus = false);
     }
   }
+
+  int get _pendingCount => _allBookings.where((b) => b.isPending).length;
+  int get _activeCount => _allBookings.where((b) => b.isAccepted || b.isInProgress).length;
+  int get _completedCount => _allBookings.where((b) => b.isCompleted).length;
+  List<Booking> get _recentBookings => _allBookings.take(3).toList();
+
+  double get _totalEarnings =>
+      (_earnings['total'] ?? 0).toDouble();
+  double get _monthEarnings =>
+      (_earnings['month'] ?? _earnings['thisMonth'] ?? 0).toDouble();
 
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
       return const Center(child: CircularProgressIndicator(color: AppTheme.accentColor));
+    }
+
+    if (_error != null) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.error_outline, size: 48, color: Colors.red),
+            const SizedBox(height: 12),
+            Text(_error!, textAlign: TextAlign.center),
+            const SizedBox(height: 16),
+            ElevatedButton(onPressed: _loadData, child: const Text('Retry')),
+          ],
+        ),
+      );
     }
 
     return SafeArea(
@@ -125,15 +223,23 @@ class _DashboardBodyState extends State<_DashboardBody> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text('Welcome back,',
-                        style: TextStyle(fontSize: 15, color: AppTheme.textSecondary)),
-                      SizedBox(height: 4),
-                      Text('Suryaprakash Equipment',
-                        style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: AppTheme.textPrimary, letterSpacing: -0.5)),
-                    ],
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text('Welcome back,',
+                          style: TextStyle(fontSize: 15, color: AppTheme.textSecondary)),
+                        const SizedBox(height: 4),
+                        Text(
+                          _vendorName.isNotEmpty ? _vendorName : 'Vendor',
+                          style: const TextStyle(
+                            fontSize: 22, fontWeight: FontWeight.w800,
+                            color: AppTheme.textPrimary, letterSpacing: -0.5,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                    ),
                   ),
                   Container(
                     width: 48, height: 48,
@@ -149,7 +255,56 @@ class _DashboardBodyState extends State<_DashboardBody> {
                   ),
                 ],
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: 16),
+
+              // Online / Offline toggle
+              GestureDetector(
+                onTap: _isUpdatingStatus ? null : _toggleOnlineStatus,
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 300),
+                  padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+                  decoration: BoxDecoration(
+                    color: _isOnline
+                        ? AppTheme.successColor.withAlpha(20)
+                        : Colors.grey.withAlpha(15),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(
+                      color: _isOnline ? AppTheme.successColor.withAlpha(80) : Colors.grey.withAlpha(50),
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 12, height: 12,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: _isOnline ? AppTheme.successColor : Colors.grey,
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Text(
+                        _isOnline ? 'You are Online — accepting bookings' : 'You are Offline',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w700,
+                          fontSize: 14,
+                          color: _isOnline ? AppTheme.successColor : Colors.grey[600],
+                        ),
+                      ),
+                      const Spacer(),
+                      _isUpdatingStatus
+                        ? const SizedBox(width: 22, height: 22,
+                            child: CircularProgressIndicator(strokeWidth: 2, color: AppTheme.accentColor))
+                        : Switch(
+                            value: _isOnline,
+                            onChanged: (_) => _toggleOnlineStatus(),
+                            activeColor: AppTheme.successColor,
+                            materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 20),
 
               // Earnings banner
               Container(
@@ -167,14 +322,18 @@ class _DashboardBodyState extends State<_DashboardBody> {
                       children: [
                         Icon(Icons.account_balance_wallet_rounded, color: Colors.white, size: 22),
                         SizedBox(width: 8),
-                        Text('Total Earnings', style: TextStyle(color: Colors.white70, fontSize: 14, fontWeight: FontWeight.w500)),
+                        Text('Total Earnings',
+                          style: TextStyle(color: Colors.white70, fontSize: 14, fontWeight: FontWeight.w500)),
                       ],
                     ),
                     const SizedBox(height: 10),
-                    Text(_formatCurrency(_bookingService.totalEarnings),
-                      style: const TextStyle(fontSize: 34, fontWeight: FontWeight.w800, color: Colors.white, letterSpacing: -1)),
+                    Text(_formatCurrency(_totalEarnings),
+                      style: const TextStyle(
+                        fontSize: 34, fontWeight: FontWeight.w800,
+                        color: Colors.white, letterSpacing: -1,
+                      )),
                     const SizedBox(height: 6),
-                    Text('This month: ${_formatCurrency(_bookingService.monthEarnings)}',
+                    Text('This month: ${_formatCurrency(_monthEarnings)}',
                       style: const TextStyle(color: Colors.white60, fontSize: 13)),
                   ],
                 ),
@@ -191,13 +350,13 @@ class _DashboardBodyState extends State<_DashboardBody> {
                 childAspectRatio: 1.25,
                 children: [
                   _StatCard(icon: Icons.construction_rounded, label: 'My Machines',
-                    value: '${_machineService.machineCount}', color: AppTheme.accentColor),
+                    value: '$_machineCount', color: AppTheme.accentColor),
                   _StatCard(icon: Icons.pending_actions_rounded, label: 'Pending',
-                    value: '${_bookingService.pendingCount}', color: AppTheme.warningColor),
+                    value: '$_pendingCount', color: AppTheme.warningColor),
                   _StatCard(icon: Icons.check_circle_rounded, label: 'Active',
-                    value: '${_bookingService.activeCount}', color: AppTheme.successColor),
+                    value: '$_activeCount', color: AppTheme.successColor),
                   _StatCard(icon: Icons.done_all_rounded, label: 'Completed',
-                    value: '${_bookingService.completedCount}', color: AppTheme.infoColor),
+                    value: '$_completedCount', color: AppTheme.infoColor),
                 ],
               ),
               const SizedBox(height: 28),
@@ -209,14 +368,24 @@ class _DashboardBodyState extends State<_DashboardBody> {
                   const Text('Recent Bookings',
                     style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700, color: AppTheme.textPrimary)),
                   GestureDetector(
-                    onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const BookingsScreen())),
-                    child: const Text('View All', style: TextStyle(color: AppTheme.accentColor, fontWeight: FontWeight.w600, fontSize: 14)),
+                    onTap: () => Navigator.push(context,
+                      MaterialPageRoute(builder: (_) => const BookingsScreen())),
+                    child: const Text('View All',
+                      style: TextStyle(color: AppTheme.accentColor, fontWeight: FontWeight.w600, fontSize: 14)),
                   ),
                 ],
               ),
               const SizedBox(height: 14),
 
-              ..._recentBookings.map((b) => _RecentBookingCard(booking: b)),
+              if (_recentBookings.isEmpty)
+                Center(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 24),
+                    child: Text('No bookings yet', style: TextStyle(color: Colors.grey[500])),
+                  ),
+                )
+              else
+                ..._recentBookings.map((b) => _RecentBookingCard(booking: b)),
 
               const SizedBox(height: 24),
 
@@ -237,7 +406,7 @@ class _DashboardBodyState extends State<_DashboardBody> {
               _QuickAction(
                 icon: Icons.pending_actions_rounded,
                 label: 'Pending Bookings',
-                subtitle: '${_bookingService.pendingCount} requests waiting',
+                subtitle: '$_pendingCount requests waiting',
                 color: AppTheme.warningColor,
                 onTap: () => Navigator.push(context,
                   MaterialPageRoute(builder: (_) => const BookingsScreen())),
@@ -268,6 +437,7 @@ class _RecentBookingCard extends StatelessWidget {
     switch (booking.status) {
       case 'pending': return AppTheme.warningColor;
       case 'accepted': return AppTheme.infoColor;
+      case 'arrived': return AppTheme.warningColor;
       case 'in_progress': return AppTheme.successColor;
       case 'completed': return AppTheme.infoColor;
       case 'rejected': return AppTheme.errorColor;
@@ -300,7 +470,7 @@ class _RecentBookingCard extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(booking.customerName,
+                Text(booking.customerName.isNotEmpty ? booking.customerName : 'Customer',
                   style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15, color: AppTheme.textPrimary)),
                 const SizedBox(height: 3),
                 Text('${booking.machineCategory} • ${_formatDate(booking.startDate)} - ${_formatDate(booking.endDate)}',

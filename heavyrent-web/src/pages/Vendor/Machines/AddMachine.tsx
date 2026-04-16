@@ -1,7 +1,9 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Check, Upload } from 'lucide-react';
+import { ArrowLeft, Check, Upload, X, ImagePlus, Loader2 } from 'lucide-react';
+import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { createMachine } from '../../../services/api';
+import { storage, auth } from '../../../config/firebase';
 import type { MachineCategory } from '../../../types';
 import toast from 'react-hot-toast';
 
@@ -42,6 +44,10 @@ export default function AddMachine() {
   const navigate = useNavigate();
   const [saved, setSaved] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [imageUrls, setImageUrls] = useState<string[]>([]);
+  const [uploading, setUploading] = useState(false);
+  const [uploadingCount, setUploadingCount] = useState(0);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [form, setForm] = useState({
     category: '' as MachineCategory | '',
     model: '', description: '', hourlyRate: '', dailyRate: '', weeklyRate: '', monthlyRate: '',
@@ -52,6 +58,43 @@ export default function AddMachine() {
   const set = (k: string, v: string | boolean) => {
     setForm(f => ({ ...f, [k]: v }));
     setErrors(e => ({ ...e, [k]: '' }));
+  };
+
+  const handlePhotoSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files ?? []);
+    if (!files.length) return;
+    if (imageUrls.length + files.length > 5) {
+      toast.error('Maximum 5 photos allowed');
+      return;
+    }
+    const uid = auth.currentUser?.uid ?? 'unknown';
+    setUploading(true);
+    setUploadingCount(files.length);
+    const uploaded: string[] = [];
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      if (file.size > 5 * 1024 * 1024) {
+        toast.error(`${file.name} exceeds 5MB limit`);
+        continue;
+      }
+      try {
+        const path = `machines/${uid}/${Date.now()}_${i}.jpg`;
+        const r = storageRef(storage, path);
+        await uploadBytes(r, file);
+        const url = await getDownloadURL(r);
+        uploaded.push(url);
+      } catch {
+        toast.error(`Failed to upload ${file.name}`);
+      }
+    }
+    setImageUrls(prev => [...prev, ...uploaded]);
+    setUploading(false);
+    setUploadingCount(0);
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  };
+
+  const removePhoto = (idx: number) => {
+    setImageUrls(prev => prev.filter((_, i) => i !== idx));
   };
 
   const validate = () => {
@@ -81,6 +124,7 @@ export default function AddMachine() {
         location: { city: form.city.trim(), state: form.state.trim(), latitude: 0, longitude: 0 },
         serviceAreas: form.serviceAreas.split(',').map(s => s.trim()).filter(Boolean),
         isAvailable: form.isAvailable,
+        images: imageUrls,
       });
       setSaved(true);
     } catch (err: any) {
@@ -105,7 +149,7 @@ export default function AddMachine() {
         <button onClick={() => navigate('/vendor/machines')} style={{ padding: '12px 28px', borderRadius: 10, background: '#FF8C00', color: '#fff', fontWeight: 700, fontSize: 14, border: 'none', cursor: 'pointer' }}>
           View My Machines
         </button>
-        <button onClick={() => { setSaved(false); setForm({ category: '', model: '', description: '', hourlyRate: '', dailyRate: '', weeklyRate: '', monthlyRate: '', city: '', state: '', serviceAreas: '', isAvailable: true }); }}
+        <button onClick={() => { setSaved(false); setImageUrls([]); setForm({ category: '', model: '', description: '', hourlyRate: '', dailyRate: '', weeklyRate: '', monthlyRate: '', city: '', state: '', serviceAreas: '', isAvailable: true }); }}
           style={{ padding: '12px 28px', borderRadius: 10, background: '#fff', color: '#6B7280', fontWeight: 700, fontSize: 14, border: '1px solid #E5E7EB', cursor: 'pointer' }}>
           Add Another
         </button>
@@ -123,13 +167,46 @@ export default function AddMachine() {
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 300px', gap: 24, alignItems: 'start' }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
           {/* Photos */}
-          <div style={{ background: '#fff', borderRadius: 14, border: '1.5px dashed #E5E7EB', padding: '24px', textAlign: 'center', cursor: 'pointer', transition: 'border-color 0.15s' }}
-            onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = '#FF8C00'; }}
-            onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = '#E5E7EB'; }}
-          >
-            <Upload size={28} color="#9CA3AF" strokeWidth={1.5} style={{ margin: '0 auto 10px' }} />
-            <div style={{ fontSize: 14, fontWeight: 700, color: '#1A1D26', marginBottom: 4 }}>Upload Machine Photos</div>
-            <div style={{ fontSize: 12, color: '#9CA3AF' }}>Click to add photos (JPG, PNG · Max 5MB each)</div>
+          <input ref={fileInputRef} type="file" multiple accept="image/*" style={{ display: 'none' }} onChange={handlePhotoSelect} />
+          <div style={{ background: '#fff', borderRadius: 14, border: '1.5px solid #E5E7EB', padding: '20px 24px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+              <div>
+                <div style={{ fontSize: 14, fontWeight: 700, color: '#1A1D26' }}>Machine Photos</div>
+                <div style={{ fontSize: 12, color: '#9CA3AF', marginTop: 2 }}>{imageUrls.length}/5 photos · JPG, PNG · Max 5MB each</div>
+              </div>
+              {imageUrls.length < 5 && (
+                <button onClick={() => fileInputRef.current?.click()} disabled={uploading}
+                  style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 14px', borderRadius: 8, border: '1.5px dashed #FF8C00', background: '#FFF3E0', color: '#E07B00', fontWeight: 700, fontSize: 13, cursor: uploading ? 'not-allowed' : 'pointer' }}>
+                  {uploading ? <Loader2 size={14} strokeWidth={2} style={{ animation: 'spin 0.8s linear infinite' }} /> : <ImagePlus size={14} strokeWidth={2} />}
+                  {uploading ? `Uploading ${uploadingCount}…` : 'Add Photos'}
+                </button>
+              )}
+            </div>
+            {imageUrls.length > 0 ? (
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(100px, 1fr))', gap: 10 }}>
+                {imageUrls.map((url, idx) => (
+                  <div key={url} style={{ position: 'relative', aspectRatio: '1', borderRadius: 10, overflow: 'hidden', border: '1.5px solid #E5E7EB' }}>
+                    <img src={url} alt={`Machine ${idx + 1}`} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                    <button onClick={() => removePhoto(idx)} style={{ position: 'absolute', top: 4, right: 4, width: 22, height: 22, borderRadius: '50%', background: 'rgba(0,0,0,0.65)', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <X size={12} color="#fff" strokeWidth={2.5} />
+                    </button>
+                    {idx === 0 && <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, background: 'rgba(255,140,0,0.85)', color: '#fff', fontSize: 10, fontWeight: 700, textAlign: 'center', padding: '3px 0' }}>COVER</div>}
+                  </div>
+                ))}
+                {uploading && (
+                  <div style={{ aspectRatio: '1', borderRadius: 10, border: '1.5px dashed #FF8C00', background: '#FFF3E0', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <Loader2 size={22} color="#FF8C00" strokeWidth={1.5} style={{ animation: 'spin 0.8s linear infinite' }} />
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div onClick={() => fileInputRef.current?.click()} style={{ border: '1.5px dashed #E5E7EB', borderRadius: 10, padding: '32px 20px', textAlign: 'center', cursor: 'pointer', transition: 'border-color 0.15s' }}
+                onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = '#FF8C00'; }}
+                onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = '#E5E7EB'; }}>
+                <Upload size={28} color="#9CA3AF" strokeWidth={1.5} style={{ margin: '0 auto 10px' }} />
+                <div style={{ fontSize: 13, color: '#6B7280' }}>Click to add photos</div>
+              </div>
+            )}
           </div>
 
           {/* Category */}

@@ -65,7 +65,7 @@ class _VendorMapScreenState extends State<VendorMapScreen> {
       infoWindow: const InfoWindow(title: 'Your Location'),
     ));
 
-    // Work site marker
+    // Work site marker — show near vendor if no lat/lng
     _markers.add(Marker(
       markerId: const MarkerId('worksite'),
       position: LatLng(vendorPos.latitude + 0.01, vendorPos.longitude + 0.01),
@@ -186,6 +186,7 @@ class _VendorMapScreenState extends State<VendorMapScreen> {
   void dispose() {
     _mapController?.dispose();
     _otpController.dispose();
+    // Don't stop broadcasting on dispose — user may go back and vendor should keep broadcasting
     super.dispose();
   }
 
@@ -212,7 +213,7 @@ class _VendorMapScreenState extends State<VendorMapScreen> {
             compassEnabled: true,
           ),
 
-          // Back button
+          // GPS status badge
           Positioned(
             top: MediaQuery.of(context).padding.top + 12,
             left: 16,
@@ -317,7 +318,7 @@ class _VendorMapScreenState extends State<VendorMapScreen> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text('${_booking.machineCategory} — ${_booking.machineModel}',
+                            Text(_booking.machineCategory + ' — ' + _booking.machineModel,
                               style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
                             Text(_booking.customerName,
                               style: TextStyle(color: Colors.grey[600], fontSize: 13)),
@@ -407,8 +408,7 @@ class _VendorMapScreenState extends State<VendorMapScreen> {
               children: [
                 Icon(Icons.info_outline, color: AppTheme.warningColor, size: 16),
                 SizedBox(width: 8),
-                Text('Waiting for customer OTP',
-                  style: TextStyle(color: AppTheme.warningColor, fontWeight: FontWeight.w500)),
+                Text('Waiting for customer OTP', style: TextStyle(color: AppTheme.warningColor, fontWeight: FontWeight.w500)),
               ],
             ),
           ),

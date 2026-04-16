@@ -6,8 +6,8 @@ class AuthService {
   final ApiService _api = ApiService();
 
   User? get currentUser => _auth.currentUser;
-  bool get isSignedIn => _auth.currentUser != null;
   String? get currentUserId => _auth.currentUser?.uid;
+  bool get isSignedIn => _auth.currentUser != null;
 
   Stream<User?> get authStateChanges => _auth.authStateChanges();
 
@@ -21,8 +21,9 @@ class AuthService {
       phoneNumber: phoneNumber,
       timeout: const Duration(seconds: 60),
       verificationCompleted: (PhoneAuthCredential credential) async {
-        await _auth.signInWithCredential(credential);
-        final token = await _auth.currentUser?.getIdToken();
+        // Auto-retrieval on Android
+        final result = await _auth.signInWithCredential(credential);
+        final token = await result.user?.getIdToken();
         if (token != null) _api.setToken(token);
       },
       verificationFailed: (FirebaseAuthException e) {
@@ -31,12 +32,12 @@ class AuthService {
       codeSent: (String verificationId, int? resendToken) {
         onCodeSent(verificationId);
       },
-      codeAutoRetrievalTimeout: (String verificationId) {},
+      codeAutoRetrievalTimeout: (_) {},
     );
   }
 
-  /// Signs in with OTP entered by user
-  Future<bool> signInWithOTP(String verificationId, String otp) async {
+  /// Verifies the OTP entered by the user
+  Future<bool> verifyOTP(String verificationId, String otp) async {
     try {
       final credential = PhoneAuthProvider.credential(
         verificationId: verificationId,
@@ -51,6 +52,7 @@ class AuthService {
     }
   }
 
+  /// Registers vendor profile in backend after successful auth
   Future<Map<String, dynamic>> registerVendor({
     required String name,
     String? email,
@@ -66,18 +68,12 @@ class AuthService {
     });
   }
 
-  Future<bool> hasProfile() async {
-    try {
-      final response = await _api.get('/auth/profile');
-      final user = response['user'];
-      return user != null && (user['name'] as String?)?.isNotEmpty == true;
-    } catch (_) {
-      return false;
-    }
-  }
-
   Future<Map<String, dynamic>> getProfile() async {
     return await _api.get('/auth/profile');
+  }
+
+  Future<void> updateOnlineStatus(bool isOnline) async {
+    await _api.patch('/auth/online-status', body: {'isOnline': isOnline});
   }
 
   Future<void> signOut() async {

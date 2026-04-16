@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import '../../config/theme.dart';
 import '../../models/booking.dart';
@@ -502,52 +503,95 @@ class _BookingDetailScreenState extends State<BookingDetailScreen> {
             if (_booking.status == 'arrived') ...[
               Container(
                 width: double.infinity,
-                padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: Colors.teal.withAlpha(20),
-                  borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: Colors.teal.withAlpha(80)),
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFF00897B), Color(0xFF00695C)],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.teal.withAlpha(80),
+                      blurRadius: 12, offset: const Offset(0, 4)),
+                  ],
                 ),
-                child: Column(
-                  children: [
-                    const Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(Icons.check_circle, color: Colors.teal),
-                        SizedBox(width: 8),
-                        Text('Machine Has Arrived!',
-                          style: TextStyle(fontWeight: FontWeight.bold, color: Colors.teal, fontSize: 16)),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      'Share your OTP with the operator to start work',
-                      style: TextStyle(color: Colors.grey[700], fontSize: 13),
-                      textAlign: TextAlign.center,
-                    ),
-                    const SizedBox(height: 12),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(10),
-                        border: Border.all(color: Colors.teal.withAlpha(80)),
-                      ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                child: Padding(
+                  padding: const EdgeInsets.all(20),
+                  child: Column(
+                    children: [
+                      const Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          const Text('Your OTP', style: TextStyle(color: Colors.grey, fontSize: 13)),
-                          Text(
-                            _booking.startOtp ?? '----',
-                            style: const TextStyle(
-                              fontSize: 26, fontWeight: FontWeight.bold,
-                              letterSpacing: 8, color: Colors.teal,
-                            ),
-                          ),
+                          Icon(Icons.directions_car, color: Colors.white, size: 22),
+                          SizedBox(width: 8),
+                          Text('Machine Has Arrived!',
+                            style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white, fontSize: 18)),
                         ],
                       ),
-                    ),
-                  ],
+                      const SizedBox(height: 6),
+                      const Text(
+                        'Show this OTP to the operator to start work',
+                        style: TextStyle(color: Colors.white70, fontSize: 13),
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 16),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Column(
+                          children: [
+                            const Text('YOUR START OTP',
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.bold,
+                                letterSpacing: 2,
+                                color: Colors.grey,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              _booking.startOtp ?? '----',
+                              style: const TextStyle(
+                                fontSize: 48,
+                                fontWeight: FontWeight.bold,
+                                letterSpacing: 16,
+                                color: Color(0xFF00695C),
+                              ),
+                            ),
+                            const SizedBox(height: 12),
+                            SizedBox(
+                              width: double.infinity,
+                              child: OutlinedButton.icon(
+                                onPressed: () {
+                                  Clipboard.setData(ClipboardData(
+                                    text: _booking.startOtp ?? ''));
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text('OTP copied!'),
+                                      duration: Duration(seconds: 2),
+                                      behavior: SnackBarBehavior.floating,
+                                    ),
+                                  );
+                                },
+                                icon: const Icon(Icons.copy, size: 16),
+                                label: const Text('Copy OTP'),
+                                style: OutlinedButton.styleFrom(
+                                  foregroundColor: const Color(0xFF00695C),
+                                  side: const BorderSide(color: Color(0xFF00695C)),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(8)),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
               const SizedBox(height: 12),

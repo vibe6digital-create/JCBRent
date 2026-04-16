@@ -121,6 +121,7 @@ class _LiveTrackingScreenState extends State<LiveTrackingScreen> {
               color: Colors.red,
               onTap: () {
                 Navigator.pop(ctx);
+                // url_launcher would open dialer — show snackbar for now
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(content: Text('Calling Police: 100'), backgroundColor: Colors.red));
               },
@@ -437,7 +438,7 @@ class _LiveTrackingScreenState extends State<LiveTrackingScreen> {
   Color get _statusColor {
     switch (_booking.status) {
       case 'accepted': return Colors.blue;
-      case 'arrived': return const Color(0xFFFB8C00);
+      case 'arrived': return AppTheme.accentColor;
       case 'in_progress': return AppTheme.successColor;
       default: return Colors.grey;
     }

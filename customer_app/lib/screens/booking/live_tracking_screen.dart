@@ -438,7 +438,7 @@ class _LiveTrackingScreenState extends State<LiveTrackingScreen> {
   Color get _statusColor {
     switch (_booking.status) {
       case 'accepted': return Colors.blue;
-      case 'arrived': return AppTheme.warningColor;
+      case 'arrived': return AppTheme.accentColor;
       case 'in_progress': return AppTheme.successColor;
       default: return Colors.grey;
     }

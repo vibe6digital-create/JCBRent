@@ -38,4 +38,9 @@ class BookingService {
   Future<void> updateLocation(String bookingId, double lat, double lng) async {
     await _api.patch('/bookings/$bookingId/location', body: {'lat': lat, 'lng': lng});
   }
+
+  Future<Map<String, dynamic>> getEarningsSummary() async {
+    final response = await _api.get('/bookings/vendor/earnings');
+    return response['earnings'] ?? response ?? {};
+  }
 }

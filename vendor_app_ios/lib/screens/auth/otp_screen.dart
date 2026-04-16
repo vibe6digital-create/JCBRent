@@ -109,13 +109,28 @@ class _OTPScreenState extends State<OTPScreen> {
 
             Center(
               child: GestureDetector(
-                onTap: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: const Text('OTP resent!'),
-                      behavior: SnackBarBehavior.floating,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                    ));
+                onTap: () async {
+                  await _authService.verifyPhone(
+                    phoneNumber: widget.phoneNumber,
+                    onCodeSent: (_) {
+                      if (!mounted) return;
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: const Text('OTP resent!'),
+                          behavior: SnackBarBehavior.floating,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        ));
+                    },
+                    onFailed: (error) {
+                      if (!mounted) return;
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(error),
+                          behavior: SnackBarBehavior.floating,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        ));
+                    },
+                  );
                 },
                 child: RichText(
                   text: const TextSpan(
@@ -145,8 +160,26 @@ class _OTPScreenState extends State<OTPScreen> {
     setState(() { _isLoading = true; _error = null; });
 
     try {
-      final success = await _authService.signInWithOTP(widget.verificationId, _otpController.text);
-      if (success && mounted) {
+      final success = await _authService.verifyOTP(widget.verificationId, _otpController.text.trim());
+      if (!success) throw Exception('Verification failed');
+
+      // Always ensure the user is registered as vendor in the backend.
+      // If profile exists as 'customer', re-register to upgrade role to 'vendor'.
+      Map<String, dynamic> profile = {};
+      try {
+        profile = await _authService.getProfile();
+      } catch (_) {
+        profile = {};
+      }
+
+      final existingRole = profile['user']?['role'] ?? profile['role'] ?? '';
+      if (existingRole != 'vendor') {
+        // New user OR customer trying vendor app — register/upgrade to vendor
+        final name = profile['user']?['name'] ?? profile['name'] ?? 'Vendor';
+        await _authService.registerVendor(name: name); // let error bubble up if fails
+      }
+
+      if (mounted) {
         Navigator.pushAndRemoveUntil(
           context,
           MaterialPageRoute(builder: (_) => const VendorHomeScreen()),
@@ -154,12 +187,10 @@ class _OTPScreenState extends State<OTPScreen> {
         );
       }
     } catch (e) {
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-          _error = e.toString().replaceFirst('Exception: ', '');
-        });
-      }
+      setState(() {
+        _isLoading = false;
+        _error = e.toString().replaceFirst('Exception: ', '');
+      });
     }
   }
 

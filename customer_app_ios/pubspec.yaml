@@ -22,6 +22,7 @@ dependencies:
   firebase_storage: ^12.3.2
   firebase_messaging: ^15.0.0
   google_maps_flutter: ^2.7.0
+  geolocator: ^13.0.1
   # Receipt / PDF
   pdf: ^3.11.1
   printing: ^5.13.2

@@ -104,33 +104,66 @@ class _DashboardBodyState extends State<_DashboardBody> {
 
   Future<void> _loadData() async {
     setState(() { _isLoading = true; _error = null; });
+
+    // Fetch each piece independently — one failure doesn't kill the dashboard
+    List<Booking> bookings = [];
+    List machines = [];
+    Map<String, dynamic> profile = {};
+    Map<String, dynamic> earnings = {};
+
+    String? criticalError;
+
     try {
-      final results = await Future.wait([
-        _bookingService.getVendorBookings(),
-        _machineService.getMyMachines(),
-        _authService.getProfile(),
-        _bookingService.getEarningsSummary(),
-      ]);
-
-      final bookings = results[0] as List<Booking>;
-      final machines = results[1] as List;
-      final profile = results[2] as Map<String, dynamic>;
-      final earnings = results[3] as Map<String, dynamic>;
-
-      final sorted = List<Booking>.from(bookings)
-        ..sort((a, b) => b.startDate.compareTo(a.startDate));
-
-      setState(() {
-        _allBookings = sorted;
-        _machineCount = machines.length;
-        _vendorName = profile['user']?['name'] ?? profile['name'] ?? '';
-        _isOnline = profile['user']?['isOnline'] ?? profile['isOnline'] ?? false;
-        _earnings = earnings;
-        _isLoading = false;
-      });
+      profile = await _authService.getProfile();
     } catch (e) {
-      setState(() { _error = e.toString(); _isLoading = false; });
+      final msg = e.toString();
+      // User authenticated but no Firestore doc yet — auto-register as vendor
+      if (msg.contains('User not found') || msg.contains('404')) {
+        try {
+          await _authService.registerVendor(name: 'Vendor');
+          profile = await _authService.getProfile();
+        } catch (regError) {
+          criticalError = 'Registration failed. Please sign out and log in again.';
+        }
+      } else {
+        criticalError = msg;
+      }
     }
+
+    // If profile still fails (token issue, network, etc.), show error
+    if (criticalError != null) {
+      setState(() { _error = criticalError; _isLoading = false; });
+      return;
+    }
+
+    // Non-critical calls — failures show defaults (0 / empty list)
+    try {
+      await Future.wait([
+        _bookingService.getVendorBookings()
+            .then((v) => bookings = v)
+            .catchError((e) { bookings = []; }),
+        _machineService.getMyMachines()
+            .then((v) => machines = v)
+            .catchError((e) { machines = []; }),
+        _bookingService.getEarningsSummary()
+            .then((v) => earnings = v)
+            .catchError((e) { earnings = {}; }),
+      ]);
+    } catch (_) {
+      // Future.wait error — individual errors already handled above
+    }
+
+    final sorted = List<Booking>.from(bookings)
+      ..sort((a, b) => b.startDate.compareTo(a.startDate));
+
+    setState(() {
+      _allBookings = sorted;
+      _machineCount = machines.length;
+      _vendorName = profile['user']?['name'] ?? profile['name'] ?? '';
+      _isOnline = profile['user']?['isOnline'] ?? profile['isOnline'] ?? false;
+      _earnings = earnings;
+      _isLoading = false;
+    });
   }
 
   Future<void> _toggleOnlineStatus() async {

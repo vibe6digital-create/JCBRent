@@ -21,6 +21,7 @@ class AuthService {
       phoneNumber: phoneNumber,
       timeout: const Duration(seconds: 60),
       verificationCompleted: (PhoneAuthCredential credential) async {
+        // Auto-retrieval on Android — sign in immediately
         await _auth.signInWithCredential(credential);
         final token = await _auth.currentUser?.getIdToken();
         if (token != null) _api.setToken(token);
@@ -51,7 +52,24 @@ class AuthService {
     }
   }
 
-  /// Creates new customer profile
+  /// Registers user profile in backend after successful auth
+  Future<Map<String, dynamic>> registerUser({
+    required String name,
+    required String role,
+    String? email,
+    String? city,
+    String? state,
+  }) async {
+    return await _api.post('/auth/register', body: {
+      'name': name,
+      'role': role,
+      'email': email ?? '',
+      'city': city ?? '',
+      'state': state ?? '',
+    });
+  }
+
+  /// Creates new customer profile with optional email and referral code
   Future<Map<String, dynamic>> registerProfile({
     required String name,
     String? email,
@@ -65,6 +83,7 @@ class AuthService {
     });
   }
 
+  /// Checks if the current user already has a profile set up
   Future<bool> hasProfile() async {
     try {
       final response = await _api.get('/auth/profile');

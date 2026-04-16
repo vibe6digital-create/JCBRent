@@ -30,8 +30,8 @@ export const getProfile = () =>
 export const updateProfile = (body: { name?: string; email?: string; city?: string; state?: string; profileType?: string; isOnline?: boolean }) =>
   request('/auth/profile', { method: 'PATCH', body: JSON.stringify(body) });
 
-export const toggleVendorOnline = (isOnline: boolean) =>
-  request('/auth/profile', { method: 'PATCH', body: JSON.stringify({ isOnline }) });
+export const updateOnlineStatus = (isOnline: boolean) =>
+  request('/auth/online-status', { method: 'PATCH', body: JSON.stringify({ isOnline }) });
 
 export const validateCoupon = (code: string, machineId: string) =>
   request('/bookings/validate-coupon', { method: 'POST', body: JSON.stringify({ code, machineId }) });
@@ -71,6 +71,7 @@ export const createMachine = (body: {
   location: { city: string; state: string; latitude: number; longitude: number };
   serviceAreas: string[];
   isAvailable?: boolean;
+  images?: string[];
 }) => request('/machines', { method: 'POST', body: JSON.stringify(body) });
 
 export const updateMachine = (id: string, body: Partial<{
