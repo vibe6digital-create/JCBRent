@@ -7,6 +7,7 @@ import {
   getCategories, createCategory, updateCategory,
   getServiceAreas, createServiceArea, updateServiceArea,
   getAllEstimates,
+  broadcastNotification, getBroadcastHistory,
   getCoupons, createCoupon, updateCoupon, deleteCoupon,
 } from '../controllers/admin.controller';
 
@@ -35,6 +36,9 @@ router.post('/service-areas', createServiceArea);
 router.put('/service-areas/:id', updateServiceArea);
 
 router.get('/estimates', getAllEstimates);
+
+router.get('/notifications', getBroadcastHistory);
+router.post('/notifications/broadcast', broadcastNotification);
 
 router.get('/coupons', getCoupons);
 router.post('/coupons', createCoupon);

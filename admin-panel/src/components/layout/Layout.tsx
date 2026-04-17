@@ -9,8 +9,11 @@ const PAGE_TITLES: Record<string, string> = {
   '/machines': 'Machines',
   '/bookings': 'Bookings',
   '/estimates': 'Estimates',
+  '/notifications': 'Notifications',
   '/categories': 'Categories',
   '/service-areas': 'Service Areas',
+  '/coupons': 'Coupons',
+  '/analytics': 'Analytics',
 };
 
 export default function Layout() {

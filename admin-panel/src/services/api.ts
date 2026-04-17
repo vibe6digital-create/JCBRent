@@ -74,6 +74,17 @@ export const adminCancelBooking = (id: string, reason: string) =>
 
 export const getEstimates = () => request('/admin/estimates');
 
+// ─── Notifications ───────────────────────────────────────────────────────────
+
+export const getBroadcastHistory = () => request('/admin/notifications');
+
+export const broadcastNotification = (body: {
+  title: string;
+  body: string;
+  target: 'all' | 'customers' | 'vendors' | 'user';
+  userId?: string;
+}) => request('/admin/notifications/broadcast', { method: 'POST', body: JSON.stringify(body) });
+
 // ─── Categories ──────────────────────────────────────────────────────────────
 
 export const getCategories = () => request('/admin/categories');

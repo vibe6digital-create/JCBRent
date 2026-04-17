@@ -11,6 +11,7 @@ import Categories from './pages/Categories/Categories';
 import ServiceAreas from './pages/ServiceAreas/ServiceAreas';
 import Coupons from './pages/Coupons/Coupons';
 import Analytics from './pages/Analytics/Analytics';
+import Notifications from './pages/Notifications/Notifications';
 import Login from './pages/Auth/Login';
 
 function ProtectedRoutes() {
@@ -48,6 +49,7 @@ function ProtectedRoutes() {
         <Route path="/service-areas" element={<ServiceAreas />} />
         <Route path="/coupons" element={<Coupons />} />
         <Route path="/analytics" element={<Analytics />} />
+        <Route path="/notifications" element={<Notifications />} />
       </Route>
     </Routes>
   );
