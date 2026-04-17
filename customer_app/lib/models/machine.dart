@@ -12,6 +12,8 @@ class Machine {
   final List<String> serviceAreas;
   final bool isAvailable;
   final String approvalStatus;
+  final double? avgRating;
+  final int? reviewCount;
 
   Machine({
     required this.id,
@@ -27,7 +29,11 @@ class Machine {
     required this.serviceAreas,
     required this.isAvailable,
     required this.approvalStatus,
+    this.avgRating,
+    this.reviewCount,
   });
+
+  bool get hasRating => avgRating != null && avgRating! > 0;
 
   factory Machine.fromJson(Map<String, dynamic> json) {
     return Machine(
@@ -44,6 +50,8 @@ class Machine {
       serviceAreas: List<String>.from(json['serviceAreas'] ?? []),
       isAvailable: json['isAvailable'] ?? true,
       approvalStatus: json['approvalStatus'] ?? 'pending',
+      avgRating: (json['avgRating'] as num?)?.toDouble(),
+      reviewCount: json['reviewCount'] as int?,
     );
   }
 }

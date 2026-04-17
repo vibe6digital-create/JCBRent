@@ -17,6 +17,7 @@ class _AddEditMachineScreenState extends State<AddEditMachineScreen> {
 
   String? _category;
   final _modelController = TextEditingController();
+  final _yearController = TextEditingController();
   final _descriptionController = TextEditingController();
   final _hourlyRateController = TextEditingController();
   final _dailyRateController = TextEditingController();
@@ -143,6 +144,25 @@ class _AddEditMachineScreenState extends State<AddEditMachineScreen> {
                       controller: _modelController,
                       decoration: const InputDecoration(labelText: 'Model / Name *'),
                       validator: (v) => v == null || v.isEmpty ? 'Required' : null,
+                    ),
+                    const SizedBox(height: 14),
+
+                    TextFormField(
+                      controller: _yearController,
+                      decoration: const InputDecoration(
+                        labelText: 'Year of Manufacture (optional)',
+                        hintText: 'e.g. 2020',
+                      ),
+                      keyboardType: TextInputType.number,
+                      validator: (v) {
+                        if (v == null || v.isEmpty) return null;
+                        final year = int.tryParse(v);
+                        final currentYear = DateTime.now().year;
+                        if (year == null || year < 1980 || year > currentYear) {
+                          return 'Enter a valid year (1980–$currentYear)';
+                        }
+                        return null;
+                      },
                     ),
                     const SizedBox(height: 14),
 
@@ -312,6 +332,7 @@ class _AddEditMachineScreenState extends State<AddEditMachineScreen> {
         state: _stateController.text.trim(),
         serviceAreas: _selectedServiceAreas.toList(),
         imageUrls: imageUrls,
+        machineYear: _yearController.text.isNotEmpty ? int.tryParse(_yearController.text) : null,
       );
 
       if (mounted) {
@@ -342,6 +363,7 @@ class _AddEditMachineScreenState extends State<AddEditMachineScreen> {
   @override
   void dispose() {
     _modelController.dispose();
+    _yearController.dispose();
     _descriptionController.dispose();
     _hourlyRateController.dispose();
     _dailyRateController.dispose();

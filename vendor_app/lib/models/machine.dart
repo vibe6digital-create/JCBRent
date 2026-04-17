@@ -12,6 +12,7 @@ class Machine {
   final List<String> serviceAreas;
   final bool isAvailable;
   final String approvalStatus;
+  final int? machineYear;
 
   Machine({
     required this.id,
@@ -27,6 +28,7 @@ class Machine {
     required this.serviceAreas,
     required this.isAvailable,
     required this.approvalStatus,
+    this.machineYear,
   });
 
   factory Machine.fromJson(Map<String, dynamic> json) {
@@ -44,6 +46,7 @@ class Machine {
       serviceAreas: List<String>.from(json['serviceAreas'] ?? []),
       isAvailable: json['isAvailable'] ?? true,
       approvalStatus: json['approvalStatus'] ?? 'pending',
+      machineYear: json['machineYear'] as int?,
     );
   }
 
@@ -66,6 +69,7 @@ class Machine {
     double? hourlyRate,
     double? dailyRate,
     List<String>? serviceAreas,
+    int? machineYear,
   }) {
     return Machine(
       id: id,
@@ -81,6 +85,7 @@ class Machine {
       serviceAreas: serviceAreas ?? this.serviceAreas,
       isAvailable: isAvailable ?? this.isAvailable,
       approvalStatus: approvalStatus ?? this.approvalStatus,
+      machineYear: machineYear ?? this.machineYear,
     );
   }
 

@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { Search, Filter, UserCheck, UserX, Phone, MapPin, CheckCircle, XCircle, Clock } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { Search, Filter, UserCheck, UserX, Phone, MapPin, CheckCircle, XCircle, Clock, IndianRupee } from 'lucide-react';
 import Badge from '../../components/common/Badge';
 import { getUsers, toggleUserStatus, updateVendorApproval } from '../../services/api';
 import type { User, UserRole, VendorApprovalStatus } from '../../types';
@@ -20,6 +21,7 @@ const vendorApprovalIcon = (status: VendorApprovalStatus) => {
 };
 
 export default function Users() {
+  const navigate = useNavigate();
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -367,6 +369,24 @@ export default function Users() {
                           onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'transparent'; }}
                         >
                           <CheckCircle size={12} strokeWidth={1.5} /> Re-approve
+                        </button>
+                      )}
+                      {/* Earnings drill-down — vendors only */}
+                      {user.role === 'vendor' && (
+                        <button
+                          onClick={() => navigate(`/vendor-earnings/${user.uid}`)}
+                          title="View earnings"
+                          style={{
+                            display: 'flex', alignItems: 'center', gap: 4,
+                            padding: '5px 10px', borderRadius: 6,
+                            border: '1px solid #16A34A', background: 'transparent',
+                            color: '#16A34A', fontSize: 11, fontWeight: 600,
+                            cursor: 'pointer', whiteSpace: 'nowrap',
+                          }}
+                          onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = '#F0FDF4'; }}
+                          onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'transparent'; }}
+                        >
+                          <IndianRupee size={12} strokeWidth={1.5} /> Earnings
                         </button>
                       )}
                       {/* Activate / Deactivate (all roles) */}

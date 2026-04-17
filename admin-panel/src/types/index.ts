@@ -38,6 +38,7 @@ export interface Machine {
   images: string[];
   location: { city: string; state: string };
   serviceAreas: string[];
+  machineYear?: number;
   isAvailable: boolean;
   approvalStatus: ApprovalStatus;
   createdAt: string;
@@ -114,6 +115,26 @@ export interface Coupon {
   minBookingAmount?: number;
   maxDiscount?: number;
   expiryDate?: any;
+  createdAt: string;
+}
+
+export type ReportReason = 'misleading_info' | 'safety_concern' | 'unavailable' | 'overpricing' | 'other';
+export type ReportStatus = 'pending' | 'resolved' | 'dismissed';
+
+export interface MachineReport {
+  id: string;
+  machineId: string;
+  machineModel: string;
+  machineCategory: MachineCategory;
+  vendorId: string;
+  vendorName: string;
+  reporterId: string;
+  reporterName: string;
+  reason: ReportReason;
+  details: string;
+  status: ReportStatus;
+  actionTaken?: 'dismissed' | 'machine_rejected';
+  resolvedAt?: string;
   createdAt: string;
 }
 

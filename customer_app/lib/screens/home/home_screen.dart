@@ -590,6 +590,30 @@ class _FeaturedMachineCard extends StatelessWidget {
                     ],
                   ),
                   const SizedBox(height: 4),
+                  if (machine.hasRating)
+                    Row(
+                      children: [
+                        const Icon(Icons.star_rounded, size: 13, color: Color(0xFFFF8C00)),
+                        const SizedBox(width: 3),
+                        Text(
+                          machine.avgRating!.toStringAsFixed(1),
+                          style: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                            color: Color(0xFFFF8C00),
+                          ),
+                        ),
+                        const SizedBox(width: 3),
+                        Text(
+                          '(${machine.reviewCount ?? 0})',
+                          style: const TextStyle(fontSize: 11, color: Colors.grey),
+                        ),
+                      ],
+                    )
+                  else
+                    Text('No reviews',
+                      style: TextStyle(fontSize: 11, color: Colors.grey[400])),
+                  const SizedBox(height: 4),
                   Text('Rs ${machine.hourlyRate.toInt()}/hr',
                     style: const TextStyle(fontWeight: FontWeight.bold, color: AppTheme.secondaryColor, fontSize: 15)),
                 ],

@@ -1,7 +1,7 @@
 import { NavLink } from 'react-router-dom';
 import {
   LayoutDashboard, Users, Truck, CalendarCheck,
-  Tags, MapPin, ClipboardList, LogOut, Wrench, Ticket, BarChart2, Bell
+  Tags, MapPin, ClipboardList, LogOut, Wrench, Ticket, BarChart2, Bell, Flag
 } from 'lucide-react';
 
 const navItems = [
@@ -14,6 +14,7 @@ const navItems = [
   { to: '/notifications', icon: Bell, label: 'Notifications' },
   { to: '/categories', icon: Tags, label: 'Categories' },
   { to: '/service-areas', icon: MapPin, label: 'Service Areas' },
+  { to: '/reported-machines', icon: Flag, label: 'Reports' },
   { to: '/coupons', icon: Ticket, label: 'Coupons' },
 ];
 

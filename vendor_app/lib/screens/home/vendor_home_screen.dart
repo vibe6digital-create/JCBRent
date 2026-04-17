@@ -188,6 +188,23 @@ class _DashboardBodyState extends State<_DashboardBody> {
   double get _monthEarnings =>
       (_earnings['month'] ?? _earnings['thisMonth'] ?? 0).toDouble();
 
+  double get _todayEarnings {
+    final now = DateTime.now();
+    return _allBookings
+        .where((b) => b.isCompleted &&
+            b.endDate.year == now.year &&
+            b.endDate.month == now.month &&
+            b.endDate.day == now.day)
+        .fold(0.0, (s, b) => s + b.estimatedCost);
+  }
+
+  double get _weekEarnings {
+    final cutoff = DateTime.now().subtract(const Duration(days: 7));
+    return _allBookings
+        .where((b) => b.isCompleted && b.endDate.isAfter(cutoff))
+        .fold(0.0, (s, b) => s + b.estimatedCost);
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
@@ -333,10 +350,22 @@ class _DashboardBodyState extends State<_DashboardBody> {
                         color: Colors.white, letterSpacing: -1,
                       )),
                     const SizedBox(height: 6),
-                    Text('This month: ${_formatCurrency(_monthEarnings)}',
+                    Text('${_completedCount} bookings completed',
                       style: const TextStyle(color: Colors.white60, fontSize: 13)),
                   ],
                 ),
+              ),
+              const SizedBox(height: 12),
+
+              // Today / Week / Month period row
+              Row(
+                children: [
+                  Expanded(child: _MiniEarningsCard(label: 'Today', amount: _todayEarnings, color: AppTheme.successColor)),
+                  const SizedBox(width: 10),
+                  Expanded(child: _MiniEarningsCard(label: 'This Week', amount: _weekEarnings, color: AppTheme.infoColor)),
+                  const SizedBox(width: 10),
+                  Expanded(child: _MiniEarningsCard(label: 'This Month', amount: _monthEarnings, color: AppTheme.warningColor)),
+                ],
               ),
               const SizedBox(height: 22),
 
@@ -424,6 +453,38 @@ class _DashboardBodyState extends State<_DashboardBody> {
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _MiniEarningsCard extends StatelessWidget {
+  final String label;
+  final double amount;
+  final Color color;
+
+  const _MiniEarningsCard({required this.label, required this.amount, required this.color});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        boxShadow: [AppTheme.softShadow],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(label, style: const TextStyle(color: AppTheme.textSecondary, fontSize: 11, fontWeight: FontWeight.w500)),
+          const SizedBox(height: 4),
+          Text(
+            amount > 0 ? _formatCurrency(amount) : '—',
+            style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: amount > 0 ? color : AppTheme.textLight),
+            overflow: TextOverflow.ellipsis,
+          ),
+        ],
       ),
     );
   }

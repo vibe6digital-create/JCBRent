@@ -9,6 +9,8 @@ import {
   getAllEstimates,
   broadcastNotification, getBroadcastHistory,
   getCoupons, createCoupon, updateCoupon, deleteCoupon,
+  getReports, resolveReport,
+  getVendorEarningsAdmin,
 } from '../controllers/admin.controller';
 
 const router = Router();
@@ -21,6 +23,7 @@ router.get('/dashboard', getDashboard);
 router.get('/users', getAllUsers);
 router.patch('/users/:uid/toggle-status', toggleUserStatus);
 router.patch('/vendors/:uid/approval', updateVendorApproval);
+router.get('/vendors/:uid/earnings', getVendorEarningsAdmin);
 
 router.get('/machines', getAllMachinesAdmin);
 router.patch('/machines/:id/approve', approveMachine);
@@ -39,6 +42,9 @@ router.get('/estimates', getAllEstimates);
 
 router.get('/notifications', getBroadcastHistory);
 router.post('/notifications/broadcast', broadcastNotification);
+
+router.get('/reports', getReports);
+router.patch('/reports/:id', resolveReport);
 
 router.get('/coupons', getCoupons);
 router.post('/coupons', createCoupon);

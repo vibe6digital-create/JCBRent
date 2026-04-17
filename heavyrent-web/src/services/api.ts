@@ -71,6 +71,7 @@ export const createMachine = (body: {
   dailyRate: number;
   weeklyRate?: number;
   monthlyRate?: number;
+  machineYear?: number;
   location: { city: string; state: string; latitude: number; longitude: number };
   serviceAreas: string[];
   isAvailable?: boolean;
@@ -84,6 +85,7 @@ export const updateMachine = (id: string, body: Partial<{
   dailyRate: number;
   weeklyRate: number;
   monthlyRate: number;
+  machineYear: number;
   serviceAreas: string[];
   isAvailable: boolean;
 }>) => request(`/machines/${id}`, { method: 'PUT', body: JSON.stringify(body) });

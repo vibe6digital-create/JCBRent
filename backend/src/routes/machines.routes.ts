@@ -3,7 +3,7 @@ import { authenticate, authorize } from '../middleware/auth';
 import { upload } from '../middleware/upload';
 import {
   createMachine, getMachines, getMachineById,
-  updateMachine, deleteMachine, getVendorMachines, toggleAvailability, getMachineReviews
+  updateMachine, deleteMachine, getVendorMachines, toggleAvailability, getMachineReviews, reportMachine
 } from '../controllers/machines.controller';
 import { getCategories, getServiceAreas } from '../controllers/admin.controller';
 
@@ -23,5 +23,6 @@ router.patch('/:id/availability', authenticate, authorize('vendor'), toggleAvail
 
 router.get('/:id', getMachineById);
 router.get('/:id/reviews', getMachineReviews);
+router.post('/:id/report', authenticate, reportMachine);
 
 export default router;

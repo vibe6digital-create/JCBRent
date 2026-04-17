@@ -51,6 +51,7 @@ class MachineService {
     required String state,
     required List<String> serviceAreas,
     List<String> imageUrls = const [],
+    int? machineYear,
   }) async {
     final response = await _api.post('/machines', body: {
       'category': category,
@@ -61,6 +62,7 @@ class MachineService {
       'location': {'city': city, 'state': state, 'latitude': 0, 'longitude': 0},
       'serviceAreas': serviceAreas,
       if (imageUrls.isNotEmpty) 'images': imageUrls,
+      if (machineYear != null) 'machineYear': machineYear,
     });
     return Machine.fromJson(response['machine'] ?? response);
   }
@@ -71,6 +73,7 @@ class MachineService {
     double? hourlyRate,
     double? dailyRate,
     List<String>? serviceAreas,
+    int? machineYear,
   }) async {
     await _api.put('/machines/$id', body: {
       if (model != null) 'model': model,
@@ -78,6 +81,7 @@ class MachineService {
       if (hourlyRate != null) 'hourlyRate': hourlyRate,
       if (dailyRate != null) 'dailyRate': dailyRate,
       if (serviceAreas != null) 'serviceAreas': serviceAreas,
+      if (machineYear != null) 'machineYear': machineYear,
     });
   }
 

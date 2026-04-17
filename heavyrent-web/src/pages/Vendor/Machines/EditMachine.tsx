@@ -43,7 +43,7 @@ export default function EditMachine() {
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState({
     category: '' as MachineCategory | '',
-    model: '', description: '', hourlyRate: '', dailyRate: '', weeklyRate: '', monthlyRate: '',
+    model: '', description: '', machineYear: '', hourlyRate: '', dailyRate: '', weeklyRate: '', monthlyRate: '',
     city: '', state: '', serviceAreas: '', isAvailable: true,
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -61,6 +61,7 @@ export default function EditMachine() {
           dailyRate: String(m.dailyRate || ''),
           weeklyRate: String(m.weeklyRate || ''),
           monthlyRate: String(m.monthlyRate || ''),
+          machineYear: m.machineYear ? String(m.machineYear) : '',
           city: m.location?.city || '',
           state: m.location?.state || '',
           serviceAreas: (m.serviceAreas || []).join(', '),
@@ -93,6 +94,7 @@ export default function EditMachine() {
         dailyRate: Number(form.dailyRate),
         weeklyRate: form.weeklyRate ? Number(form.weeklyRate) : undefined,
         monthlyRate: form.monthlyRate ? Number(form.monthlyRate) : undefined,
+        machineYear: form.machineYear ? Number(form.machineYear) : undefined,
         serviceAreas: form.serviceAreas.split(',').map(s => s.trim()).filter(Boolean),
         isAvailable: form.isAvailable,
       });
@@ -143,6 +145,7 @@ export default function EditMachine() {
           <div style={{ background: '#fff', borderRadius: 14, border: '1px solid #E5E7EB', padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: 16 }}>
             <h3 style={{ fontSize: 15, fontWeight: 700, color: '#1A1D26' }}>Machine Details</h3>
             <EditField label="Model Name *" field="model" placeholder="e.g. JCB 3DX Plus" form={formAsRecord} errors={errors} set={setStr} />
+            <EditField label="Year of Manufacture" field="machineYear" type="number" placeholder={`e.g. ${new Date().getFullYear() - 2}`} form={formAsRecord} errors={errors} set={setStr} />
             <div>
               <label style={{ display: 'block', fontSize: 13, fontWeight: 700, color: '#374151', marginBottom: 6 }}>Description</label>
               <textarea value={form.description} onChange={e => set('description', e.target.value)} placeholder="Describe the machine condition, features..."

@@ -12,6 +12,8 @@ import ServiceAreas from './pages/ServiceAreas/ServiceAreas';
 import Coupons from './pages/Coupons/Coupons';
 import Analytics from './pages/Analytics/Analytics';
 import Notifications from './pages/Notifications/Notifications';
+import ReportedMachines from './pages/Reports/ReportedMachines';
+import VendorEarningsDetail from './pages/VendorEarnings/VendorEarningsDetail';
 import Login from './pages/Auth/Login';
 
 function ProtectedRoutes() {
@@ -50,6 +52,8 @@ function ProtectedRoutes() {
         <Route path="/coupons" element={<Coupons />} />
         <Route path="/analytics" element={<Analytics />} />
         <Route path="/notifications" element={<Notifications />} />
+        <Route path="/reported-machines" element={<ReportedMachines />} />
+        <Route path="/vendor-earnings/:uid" element={<VendorEarningsDetail />} />
       </Route>
     </Routes>
   );

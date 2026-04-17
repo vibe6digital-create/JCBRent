@@ -575,7 +575,38 @@ class _MachineCard extends StatelessWidget {
                                 color: Colors.grey[600], fontSize: 13)),
                       ],
                     ),
-                    const SizedBox(height: 6),
+                    const SizedBox(height: 5),
+                    if (machine.hasRating)
+                      Row(
+                        children: [
+                          ...List.generate(5, (i) {
+                            final filled = i < machine.avgRating!.round();
+                            return Icon(
+                              filled ? Icons.star_rounded : Icons.star_border_rounded,
+                              size: 13,
+                              color: const Color(0xFFFF8C00),
+                            );
+                          }),
+                          const SizedBox(width: 4),
+                          Text(
+                            '${machine.avgRating!.toStringAsFixed(1)}',
+                            style: const TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
+                              color: Color(0xFFFF8C00),
+                            ),
+                          ),
+                          const SizedBox(width: 3),
+                          Text(
+                            '(${machine.reviewCount ?? 0})',
+                            style: TextStyle(fontSize: 11, color: Colors.grey[500]),
+                          ),
+                        ],
+                      )
+                    else
+                      Text('No reviews yet',
+                          style: TextStyle(fontSize: 11, color: Colors.grey[400])),
+                    const SizedBox(height: 5),
                     Row(
                       children: [
                         Text('₹${machine.hourlyRate.toInt()}/hr',

@@ -21,7 +21,7 @@ function serializeMachine(data: any): any {
 export const createMachine = async (req: AuthRequest, res: Response) => {
   try {
     const { uid } = req.user!;
-    const { category, model, description, hourlyRate, dailyRate, location, serviceAreas } = req.body;
+    const { category, model, description, hourlyRate, dailyRate, weeklyRate, monthlyRate, machineYear, location, serviceAreas } = req.body;
 
     const userDoc = await db.collection('users').doc(uid).get();
     const vendorName = userDoc.data()?.name || '';
@@ -50,6 +50,7 @@ export const createMachine = async (req: AuthRequest, res: Response) => {
       images: imageUrls,
       location: typeof location === 'string' ? JSON.parse(location) : location,
       serviceAreas: typeof serviceAreas === 'string' ? JSON.parse(serviceAreas) : serviceAreas || [],
+      ...(machineYear ? { machineYear: Number(machineYear) } : {}),
       isAvailable: true,
       approvalStatus: 'pending' as const,
       createdAt: Timestamp.now(),
@@ -168,6 +169,40 @@ export const getVendorMachines = async (req: AuthRequest, res: Response) => {
     res.json({ machines, count: machines.length });
   } catch {
     res.status(500).json({ error: 'Failed to fetch vendor machines' });
+  }
+};
+
+export const reportMachine = async (req: AuthRequest, res: Response) => {
+  try {
+    const { uid } = req.user!;
+    const { id } = req.params;
+    const { reason, details } = req.body;
+
+    const machineDoc = await db.collection('machines').doc(id).get();
+    if (!machineDoc.exists) { res.status(404).json({ error: 'Machine not found' }); return; }
+    const machine = machineDoc.data()!;
+
+    const userDoc = await db.collection('users').doc(uid).get();
+    const reporterName = userDoc.data()?.name || 'Unknown';
+
+    const reportId = uuidv4();
+    await db.collection('machineReports').doc(reportId).set({
+      id: reportId,
+      machineId: id,
+      machineModel: machine.model,
+      machineCategory: machine.category,
+      vendorId: machine.vendorId,
+      vendorName: machine.vendorName,
+      reporterId: uid,
+      reporterName,
+      reason: reason || 'other',
+      details: details || '',
+      status: 'pending',
+      createdAt: Timestamp.now(),
+    });
+    res.status(201).json({ message: 'Report submitted', reportId });
+  } catch {
+    res.status(500).json({ error: 'Failed to submit report' });
   }
 };
 

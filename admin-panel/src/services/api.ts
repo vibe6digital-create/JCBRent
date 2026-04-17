@@ -136,3 +136,18 @@ export const updateCoupon = (id: string, body: Partial<{
 
 export const deleteCoupon = (id: string) =>
   request(`/admin/coupons/${id}`, { method: 'DELETE' });
+
+// ─── Vendor Earnings Drill-down ───────────────────────────────────────────────
+
+export const getVendorEarningsAdmin = (uid: string) =>
+  request(`/admin/vendors/${uid}/earnings`);
+
+// ─── Reports ─────────────────────────────────────────────────────────────────
+
+export const getReports = (status?: string) => {
+  const qs = status ? `?status=${status}` : '';
+  return request(`/admin/reports${qs}`);
+};
+
+export const resolveReport = (id: string, action: 'dismissed' | 'machine_rejected') =>
+  request(`/admin/reports/${id}`, { method: 'PATCH', body: JSON.stringify({ action }) });

@@ -51,11 +51,24 @@ export default function VendorHome() {
     }
   };
 
+  const completedBookings = bookings.filter(b => b.status === 'completed');
+  const now = new Date();
+  const todayStr = now.toISOString().split('T')[0];
+  const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+
+  const todayEarnings = completedBookings
+    .filter(b => b.endDate === todayStr)
+    .reduce((s, b) => s + b.estimatedCost, 0);
+
+  const weekEarnings = completedBookings
+    .filter(b => new Date(b.endDate) >= weekAgo)
+    .reduce((s, b) => s + b.estimatedCost, 0);
+
   const stats = {
     machines: machines.length,
     pending:   bookings.filter(b => b.status === 'pending').length,
     active:    bookings.filter(b => ['accepted', 'in_progress'].includes(b.status)).length,
-    completed: bookings.filter(b => b.status === 'completed').length,
+    completed: completedBookings.length,
   };
 
   const recentBookings = bookings.slice(0, 4);
@@ -154,11 +167,25 @@ export default function VendorHome() {
         <div style={{ position: 'absolute', top: -30, right: -30, width: 150, height: 150, borderRadius: '50%', background: 'rgba(255,255,255,0.06)' }} />
         <div style={{ position: 'relative' }}>
           <div style={{ color: 'rgba(255,255,255,0.7)', fontSize: 13, marginBottom: 4 }}>Total Earnings</div>
-          <div style={{ color: '#fff', fontSize: 36, fontWeight: 800, letterSpacing: '-0.02em', marginBottom: 6 }}>
+          <div style={{ color: '#fff', fontSize: 36, fontWeight: 800, letterSpacing: '-0.02em', marginBottom: 10 }}>
             ₹{(earnings?.total || 0).toLocaleString('en-IN')}
           </div>
-          <div style={{ color: 'rgba(255,255,255,0.65)', fontSize: 13 }}>
-            ₹{(earnings?.thisMonth || earnings?.month || 0).toLocaleString('en-IN')} this month · {stats.completed} completed bookings
+          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+            {[
+              { label: 'Today',      value: todayEarnings },
+              { label: 'This Week',  value: weekEarnings },
+              { label: 'This Month', value: earnings?.thisMonth || earnings?.month || 0 },
+            ].map(p => (
+              <div key={p.label} style={{ background: 'rgba(255,255,255,0.12)', borderRadius: 8, padding: '5px 12px' }}>
+                <span style={{ color: 'rgba(255,255,255,0.6)', fontSize: 11, marginRight: 6 }}>{p.label}</span>
+                <span style={{ color: '#fff', fontSize: 13, fontWeight: 700 }}>
+                  {p.value > 0 ? `₹${p.value.toLocaleString('en-IN')}` : '—'}
+                </span>
+              </div>
+            ))}
+          </div>
+          <div style={{ color: 'rgba(255,255,255,0.5)', fontSize: 12, marginTop: 8 }}>
+            {stats.completed} completed bookings
           </div>
         </div>
       </div>
@@ -250,14 +277,17 @@ export default function VendorHome() {
           ))}
 
           <div style={{ background: '#1A1A2E', borderRadius: 12, padding: '18px' }}>
-            <div style={{ color: '#9CA3AF', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 12 }}>This Period</div>
+            <div style={{ color: '#9CA3AF', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 12 }}>Earnings Breakdown</div>
             {[
-              { label: 'This Week',  value: 0,                                          color: '#3B82F6' },
+              { label: 'Today',      value: todayEarnings,                              color: '#43A047' },
+              { label: 'This Week',  value: weekEarnings,                               color: '#3B82F6' },
               { label: 'This Month', value: earnings?.thisMonth || earnings?.month || 0, color: '#FF8C00' },
-            ].map(e => (
-              <div key={e.label} style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+            ].map((e, i, arr) => (
+              <div key={e.label} style={{ display: 'flex', justifyContent: 'space-between', padding: '7px 0', borderBottom: i < arr.length - 1 ? '1px solid rgba(255,255,255,0.06)' : 'none' }}>
                 <span style={{ color: '#6B7280', fontSize: 13 }}>{e.label}</span>
-                <span style={{ color: e.color, fontWeight: 800, fontSize: 14 }}>₹{e.value.toLocaleString('en-IN')}</span>
+                <span style={{ color: e.value > 0 ? e.color : '#4B5563', fontWeight: 800, fontSize: 14 }}>
+                  {e.value > 0 ? `₹${e.value.toLocaleString('en-IN')}` : '—'}
+                </span>
               </div>
             ))}
           </div>
