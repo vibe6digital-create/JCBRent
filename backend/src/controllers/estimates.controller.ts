@@ -7,6 +7,21 @@ import { WorkType, AreaSize, SoilType } from '../types';
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
 
+async function fetchImageAsBase64(url: string): Promise<{ data: string; mimeType: string } | null> {
+  try {
+    const response = await fetch(url, { signal: AbortSignal.timeout(8000) });
+    if (!response.ok) return null;
+    const contentType = response.headers.get('content-type') || 'image/jpeg';
+    const mimeType = contentType.split(';')[0].trim();
+    if (!mimeType.startsWith('image/')) return null;
+    const buffer = await response.arrayBuffer();
+    const data = Buffer.from(buffer).toString('base64');
+    return { data, mimeType };
+  } catch {
+    return null;
+  }
+}
+
 async function calculateEstimateWithGemini(
   workType: WorkType,
   areaSize: AreaSize,
@@ -17,14 +32,16 @@ async function calculateEstimateWithGemini(
   try {
     const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
 
-    const prompt = `You are an expert heavy equipment estimator in India. Given the following job details, provide a realistic time and cost estimate in JSON format.
+    const realPhotos = photoUrls.filter(u => u.startsWith('http'));
+    const hasPhotos = realPhotos.length > 0;
+
+    const prompt = `You are an expert heavy equipment estimator in India.${hasPhotos ? ' Analyze the provided work site photo(s) along with the job details below to give a realistic estimate.' : ' Use the job details below to provide a realistic estimate.'}
 
 Job Details:
 - Work Type: ${workType} (excavation / leveling / trenching / foundation / debris_removal)
 - Area Size: ${areaSize} (small = under 500 sqft, medium = 500-2000 sqft, large = over 2000 sqft)
 - Soil Type: ${soilType} (soft / mixed / hard_rocky / not_sure)
-- Machine Category: ${machineCategory || 'JCB (default)'}
-- Number of site photos provided: ${photoUrls.length}
+- Machine Category: ${machineCategory || 'JCB (default)'}${hasPhotos ? `\n- Site photos attached: ${realPhotos.length} photo(s) — use visual cues from the photos to refine the estimate` : ''}
 
 Indian market context:
 - JCB/Backhoe loader: avg ₹1,200-1,500/hour
@@ -39,10 +56,20 @@ Respond ONLY with a valid JSON object, no markdown, no explanation:
   "maxHours": <number>,
   "minCost": <number in INR>,
   "maxCost": <number in INR>,
-  "aiInsight": "<one sentence explaining key factors affecting this estimate>"
+  "aiInsight": "<one sentence explaining key factors from the site photos and inputs that affect this estimate>"
 }`;
 
-    const result = await model.generateContent(prompt);
+    // Build parts array: text first, then images
+    type GeminiPart = { text: string } | { inlineData: { data: string; mimeType: string } };
+    const parts: GeminiPart[] = [{ text: prompt }];
+
+    // Attach up to 3 real photos for visual analysis
+    for (const url of realPhotos.slice(0, 3)) {
+      const img = await fetchImageAsBase64(url);
+      if (img) parts.push({ inlineData: img });
+    }
+
+    const result = await model.generateContent(parts as Parameters<typeof model.generateContent>[0]);
     const text = result.response.text().trim();
     const cleaned = text.replace(/```json|```/g, '').trim();
     const parsed = JSON.parse(cleaned);

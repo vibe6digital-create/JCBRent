@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../config/theme.dart';
@@ -78,13 +79,28 @@ class _AddEditMachineScreenState extends State<AddEditMachineScreen> {
                       child: ListView(
                         scrollDirection: Axis.horizontal,
                         children: [
-                          ..._newPhotos.map((photo) => Container(
-                            width: 110, margin: const EdgeInsets.only(right: 10),
-                            decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(16),
-                              color: AppTheme.accentColor.withAlpha(15),
+                          ..._newPhotos.map((photo) => Padding(
+                            padding: const EdgeInsets.only(right: 10),
+                            child: Stack(
+                              clipBehavior: Clip.none,
+                              children: [
+                                ClipRRect(
+                                  borderRadius: BorderRadius.circular(16),
+                                  child: Image.file(File(photo.path), width: 110, height: 110, fit: BoxFit.cover),
+                                ),
+                                Positioned(
+                                  top: -6, right: -6,
+                                  child: GestureDetector(
+                                    onTap: () => setState(() => _newPhotos.remove(photo)),
+                                    child: Container(
+                                      decoration: const BoxDecoration(color: Colors.red, shape: BoxShape.circle),
+                                      padding: const EdgeInsets.all(3),
+                                      child: const Icon(Icons.close, size: 13, color: Colors.white),
+                                    ),
+                                  ),
+                                ),
+                              ],
                             ),
-                            child: const Center(child: Icon(Icons.image_rounded, color: AppTheme.accentColor, size: 32)),
                           )),
                           GestureDetector(
                             onTap: _pickPhoto,

@@ -11,6 +11,7 @@ class Estimate {
   final double estimatedCostMin;
   final double estimatedCostMax;
   final String disclaimer;
+  final String? aiInsight;
 
   Estimate({
     required this.id,
@@ -25,6 +26,7 @@ class Estimate {
     required this.estimatedCostMin,
     required this.estimatedCostMax,
     required this.disclaimer,
+    this.aiInsight,
   });
 
   factory Estimate.fromJson(Map<String, dynamic> json) {
@@ -41,6 +43,7 @@ class Estimate {
       estimatedCostMin: (json['estimatedCostMin'] ?? 0).toDouble(),
       estimatedCostMax: (json['estimatedCostMax'] ?? 0).toDouble(),
       disclaimer: json['disclaimer'] ?? '',
+      aiInsight: json['aiInsight'] as String?,
     );
   }
 

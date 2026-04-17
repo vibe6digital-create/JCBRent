@@ -52,6 +52,41 @@ class EstimateResultScreen extends StatelessWidget {
             ),
             const SizedBox(height: 16),
 
+            // AI Insight
+            if (estimate.aiInsight != null && estimate.aiInsight!.isNotEmpty) ...[
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: AppTheme.primaryColor.withAlpha(15),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: AppTheme.primaryColor.withAlpha(80)),
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Icon(Icons.auto_awesome, color: AppTheme.primaryColor, size: 20),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text('AI Insight',
+                              style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 13,
+                                  color: AppTheme.primaryColor)),
+                          const SizedBox(height: 4),
+                          Text(estimate.aiInsight!,
+                              style: TextStyle(color: Colors.grey[700], fontSize: 13)),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 12),
+            ],
+
             // Disclaimer
             Container(
               padding: const EdgeInsets.all(12),
