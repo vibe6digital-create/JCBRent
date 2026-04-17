@@ -1,9 +1,36 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, ArrowRight, Check, Calendar, MapPin, Clock, IndianRupee, Tag, AlertCircle } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Check, Calendar, MapPin, Clock, IndianRupee, Tag, AlertCircle, Navigation } from 'lucide-react';
+import { MapContainer, TileLayer, Marker, useMap, useMapEvents } from 'react-leaflet';
+import L from 'leaflet';
+import 'leaflet/dist/leaflet.css';
 import { getMachineById, createBooking, validateCoupon } from '../../../services/api';
 import type { Machine } from '../../../types';
 import toast from 'react-hot-toast';
+
+// Fix default marker icons (Leaflet + Vite issue)
+delete (L.Icon.Default.prototype as any)._getIconUrl;
+L.Icon.Default.mergeOptions({
+  iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
+  iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
+  shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
+});
+
+function MapClickHandler({ onClick }: { onClick: (lat: number, lng: number) => void }) {
+  useMapEvents({ click: (e) => onClick(e.latlng.lat, e.latlng.lng) });
+  return null;
+}
+
+function FlyToTarget({ target }: { target: [number, number] | null }) {
+  const map = useMap();
+  const prev = useRef('');
+  useEffect(() => {
+    if (!target) return;
+    const key = target.join(',');
+    if (key !== prev.current) { prev.current = key; map.flyTo(target, 16); }
+  }, [target, map]);
+  return null;
+}
 
 const MACHINE_ICONS: Record<string, string> = {
   JCB: '🚜', Excavator: '⛏️', Crane: '🏗️', Bulldozer: '🚧', Roller: '🛞', Pokelane: '🛣️',
@@ -50,6 +77,68 @@ export default function CreateBooking() {
   const [submitting, setSubmitting] = useState(false);
   const [done, setDone] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
+
+  // Location autocomplete + map
+  const [suggestions, setSuggestions] = useState<string[]>([]);
+  const [pickedLatLng, setPickedLatLng] = useState<[number, number] | null>(null);
+  const [flyTarget, setFlyTarget] = useState<[number, number] | null>(null);
+  const [locationLoading, setLocationLoading] = useState(false);
+  const debounceRef = useRef<ReturnType<typeof setTimeout>>();
+
+  const fetchSuggestions = async (q: string) => {
+    if (q.length < 3) { setSuggestions([]); return; }
+    try {
+      const res = await fetch(
+        `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q)}&format=json&countrycodes=in&limit=5`,
+        { headers: { 'Accept-Language': 'en' } }
+      );
+      const data = await res.json();
+      setSuggestions(data.map((d: any) => d.display_name as string));
+    } catch { setSuggestions([]); }
+  };
+
+  const geocodeAddress = async (addr: string): Promise<[number, number] | null> => {
+    try {
+      const res = await fetch(
+        `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(addr)}&format=json&countrycodes=in&limit=1`
+      );
+      const data = await res.json();
+      if (data.length > 0) return [parseFloat(data[0].lat), parseFloat(data[0].lon)];
+    } catch {}
+    return null;
+  };
+
+  const reverseGeocode = async (lat: number, lng: number): Promise<string> => {
+    try {
+      const res = await fetch(
+        `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json`
+      );
+      const data = await res.json();
+      return (data.display_name as string) || '';
+    } catch { return ''; }
+  };
+
+  const handleMapClick = async (lat: number, lng: number) => {
+    setPickedLatLng([lat, lng]);
+    const addr = await reverseGeocode(lat, lng);
+    if (addr) { setAddress(addr); setErrors({}); setSuggestions([]); }
+  };
+
+  const handleMyLocation = () => {
+    if (!navigator.geolocation) { toast.error('Geolocation not supported'); return; }
+    setLocationLoading(true);
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        const { latitude: lat, longitude: lng } = pos.coords;
+        setPickedLatLng([lat, lng]);
+        setFlyTarget([lat, lng]);
+        const addr = await reverseGeocode(lat, lng);
+        if (addr) { setAddress(addr); setErrors({}); }
+        setLocationLoading(false);
+      },
+      () => { toast.error('Could not get your location'); setLocationLoading(false); }
+    );
+  };
 
   if (loadingMachine) return <div style={{ textAlign: 'center', padding: 40 }}>Loading...</div>;
   if (!machine) return <div style={{ padding: 40, textAlign: 'center', color: '#9CA3AF' }}>Machine not found</div>;
@@ -144,7 +233,11 @@ export default function CreateBooking() {
         startTime,
         rateType,
         bookingType,
-        workLocation: { address, city: '' },
+        workLocation: {
+          address,
+          city: '',
+          ...(pickedLatLng ? { lat: pickedLatLng[0], lng: pickedLatLng[1] } : {}),
+        },
         notes: notes || undefined,
         couponCode: couponApplied ? couponCode : undefined,
       });
@@ -301,16 +394,136 @@ export default function CreateBooking() {
           )}
 
           {step === 2 && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
               <h2 style={{ fontSize: 20, fontWeight: 800, color: '#1A1D26' }}>Work Location</h2>
-              <div>
-                <label style={{ fontSize: 13, fontWeight: 700, color: '#374151', display: 'block', marginBottom: 6 }}>Complete Address *</label>
-                <textarea value={address} onChange={e => { setAddress(e.target.value); setErrors({}); }}
-                  placeholder="Plot no., Street, Locality, City, Pincode"
-                  rows={4}
-                  style={{ width: '100%', padding: '12px 14px', border: `2px solid ${errors.address ? '#E53935' : '#E5E7EB'}`, borderRadius: 8, fontSize: 14, color: '#1A1D26', resize: 'vertical' }} />
+
+              {/* Use My Location button */}
+              <button
+                onClick={handleMyLocation}
+                disabled={locationLoading}
+                style={{
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+                  padding: '11px 16px', borderRadius: 10, cursor: 'pointer',
+                  border: '2px solid #3B82F6', background: '#EFF6FF',
+                  color: '#1D4ED8', fontWeight: 700, fontSize: 14,
+                  opacity: locationLoading ? 0.6 : 1, transition: 'all 0.15s',
+                }}
+              >
+                <Navigation size={15} strokeWidth={2} />
+                {locationLoading ? 'Getting location...' : 'Use My Current Location'}
+              </button>
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <div style={{ flex: 1, height: 1, background: '#E5E7EB' }} />
+                <span style={{ fontSize: 12, color: '#9CA3AF' }}>or type address</span>
+                <div style={{ flex: 1, height: 1, background: '#E5E7EB' }} />
+              </div>
+
+              {/* Address field + autocomplete dropdown */}
+              <div style={{ position: 'relative' }}>
+                <label style={{ fontSize: 13, fontWeight: 700, color: '#374151', display: 'block', marginBottom: 6 }}>
+                  Work Address *
+                </label>
+                <div style={{ position: 'relative' }}>
+                  <MapPin size={15} color="#9CA3AF" strokeWidth={1.5} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }} />
+                  <input
+                    value={address}
+                    onChange={e => {
+                      setAddress(e.target.value);
+                      setErrors({});
+                      clearTimeout(debounceRef.current);
+                      debounceRef.current = setTimeout(() => fetchSuggestions(e.target.value), 400);
+                    }}
+                    placeholder="Type locality, city, pincode..."
+                    style={{
+                      width: '100%', padding: '10px 14px 10px 36px',
+                      border: `2px solid ${errors.address ? '#E53935' : '#E5E7EB'}`,
+                      borderRadius: suggestions.length > 0 ? '8px 8px 0 0' : 8,
+                      fontSize: 14, color: '#1A1D26', boxSizing: 'border-box',
+                    }}
+                  />
+                </div>
+                {suggestions.length > 0 && (
+                  <div style={{
+                    position: 'absolute', zIndex: 999, width: '100%',
+                    background: '#fff', border: '2px solid #E5E7EB', borderTop: 'none',
+                    borderRadius: '0 0 8px 8px',
+                    boxShadow: '0 8px 20px rgba(0,0,0,0.1)',
+                  }}>
+                    {suggestions.map((s, i) => (
+                      <div
+                        key={i}
+                        onClick={async () => {
+                          setAddress(s);
+                          setSuggestions([]);
+                          setErrors({});
+                          const latlng = await geocodeAddress(s);
+                          if (latlng) { setPickedLatLng(latlng); setFlyTarget(latlng); }
+                        }}
+                        style={{
+                          padding: '10px 14px', fontSize: 13, color: '#374151',
+                          cursor: 'pointer', display: 'flex', gap: 8, alignItems: 'flex-start',
+                          borderTop: i > 0 ? '1px solid #F3F4F6' : 'none',
+                          transition: 'background 0.1s',
+                        }}
+                        onMouseEnter={e => (e.currentTarget.style.background = '#F9FAFB')}
+                        onMouseLeave={e => (e.currentTarget.style.background = '#fff')}
+                      >
+                        <MapPin size={13} color="#FF8C00" strokeWidth={1.5} style={{ flexShrink: 0, marginTop: 2 }} />
+                        <span style={{ lineHeight: 1.4 }}>{s}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
                 {errors.address && <p style={{ color: '#E53935', fontSize: 12, marginTop: 4 }}>{errors.address}</p>}
               </div>
+
+              {/* Interactive map */}
+              <div style={{ borderRadius: 12, overflow: 'hidden', border: '2px solid #E5E7EB', position: 'relative' }}>
+                <MapContainer
+                  center={pickedLatLng ?? [20.5937, 78.9629]}
+                  zoom={pickedLatLng ? 15 : 5}
+                  style={{ height: 240, width: '100%' }}
+                  zoomControl
+                >
+                  <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+                  <FlyToTarget target={flyTarget} />
+                  <MapClickHandler onClick={handleMapClick} />
+                  {pickedLatLng && (
+                    <Marker
+                      position={pickedLatLng}
+                      draggable
+                      eventHandlers={{
+                        dragend: async (e) => {
+                          const { lat, lng } = (e.target as L.Marker).getLatLng();
+                          setPickedLatLng([lat, lng]);
+                          const addr = await reverseGeocode(lat, lng);
+                          if (addr) { setAddress(addr); setErrors({}); }
+                        },
+                      }}
+                    />
+                  )}
+                </MapContainer>
+                {!pickedLatLng && (
+                  <div style={{
+                    position: 'absolute', bottom: 0, left: 0, right: 0,
+                    background: 'rgba(0,0,0,0.55)', padding: '7px 0',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    gap: 6, pointerEvents: 'none',
+                  }}>
+                    <MapPin size={13} color="#fff" strokeWidth={1.5} />
+                    <span style={{ color: '#fff', fontSize: 12 }}>Click on the map to drop a pin</span>
+                  </div>
+                )}
+              </div>
+              {pickedLatLng && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: '#16A34A' }}>
+                  <Check size={13} strokeWidth={2.5} />
+                  Pin set — drag it to adjust the exact location
+                </div>
+              )}
+
+              {/* Notes */}
               <div>
                 <label style={{ fontSize: 13, fontWeight: 700, color: '#374151', display: 'block', marginBottom: 6 }}>Additional Notes (Optional)</label>
                 <textarea value={notes} onChange={e => setNotes(e.target.value)}
