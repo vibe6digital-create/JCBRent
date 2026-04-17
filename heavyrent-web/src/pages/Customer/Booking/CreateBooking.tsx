@@ -1,7 +1,7 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, ArrowRight, Check, Calendar, MapPin, Clock, IndianRupee, Tag, AlertCircle, Navigation } from 'lucide-react';
-import { MapContainer, TileLayer, Marker, useMap, useMapEvents } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { getMachineById, createBooking, validateCoupon } from '../../../services/api';
@@ -16,19 +16,30 @@ L.Icon.Default.mergeOptions({
   shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
 });
 
-function MapClickHandler({ onClick }: { onClick: (lat: number, lng: number) => void }) {
-  useMapEvents({ click: (e) => onClick(e.latlng.lat, e.latlng.lng) });
-  return null;
-}
-
-function FlyToTarget({ target }: { target: [number, number] | null }) {
+// Uses useMap (safe — always inside MapContainer) + native Leaflet .on() for click
+// Avoids useMapEvents which has instability in react-leaflet v5 with changing handlers
+function MapEventBridge({
+  onMapClick,
+  flyTarget,
+}: {
+  onMapClick: (lat: number, lng: number) => void;
+  flyTarget: [number, number] | null;
+}) {
   const map = useMap();
-  const prev = useRef('');
+  const prevFly = useRef('');
+
   useEffect(() => {
-    if (!target) return;
-    const key = target.join(',');
-    if (key !== prev.current) { prev.current = key; map.flyTo(target, 16); }
-  }, [target, map]);
+    const handler = (e: L.LeafletMouseEvent) => onMapClick(e.latlng.lat, e.latlng.lng);
+    map.on('click', handler);
+    return () => { map.off('click', handler); };
+  }, [map, onMapClick]);
+
+  useEffect(() => {
+    if (!flyTarget) return;
+    const key = flyTarget.join(',');
+    if (key !== prevFly.current) { prevFly.current = key; map.flyTo(flyTarget, 16); }
+  }, [flyTarget, map]);
+
   return null;
 }
 
@@ -118,11 +129,11 @@ export default function CreateBooking() {
     } catch { return ''; }
   };
 
-  const handleMapClick = async (lat: number, lng: number) => {
+  const handleMapClick = useCallback(async (lat: number, lng: number) => {
     setPickedLatLng([lat, lng]);
     const addr = await reverseGeocode(lat, lng);
     if (addr) { setAddress(addr); setErrors({}); setSuggestions([]); }
-  };
+  }, []);
 
   const handleMyLocation = () => {
     if (!navigator.geolocation) { toast.error('Geolocation not supported'); return; }
@@ -487,8 +498,7 @@ export default function CreateBooking() {
                   zoomControl
                 >
                   <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
-                  <FlyToTarget target={flyTarget} />
-                  <MapClickHandler onClick={handleMapClick} />
+                  <MapEventBridge onMapClick={handleMapClick} flyTarget={flyTarget} />
                   {pickedLatLng && (
                     <Marker
                       position={pickedLatLng}
