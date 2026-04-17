@@ -3,7 +3,7 @@ import { authenticate, authorize } from '../middleware/auth';
 import { upload } from '../middleware/upload';
 import {
   createMachine, getMachines, getMachineById,
-  updateMachine, deleteMachine, getVendorMachines, toggleAvailability
+  updateMachine, deleteMachine, getVendorMachines, toggleAvailability, getMachineReviews
 } from '../controllers/machines.controller';
 import { getCategories, getServiceAreas } from '../controllers/admin.controller';
 
@@ -22,5 +22,6 @@ router.delete('/:id', authenticate, authorize('vendor', 'admin'), deleteMachine)
 router.patch('/:id/availability', authenticate, authorize('vendor'), toggleAvailability);
 
 router.get('/:id', getMachineById);
+router.get('/:id/reviews', getMachineReviews);
 
 export default router;

@@ -1,13 +1,42 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, MapPin, Phone, Clock, IndianRupee, Zap, Star, CheckCircle } from 'lucide-react';
-import { getMachineById } from '../../../services/api';
-import type { Machine } from '../../../types';
+import { ArrowLeft, MapPin, Phone, Clock, IndianRupee, Zap, Star, CheckCircle, MessageSquare } from 'lucide-react';
+import { getMachineById, getMachineReviews } from '../../../services/api';
+import type { Machine, Review } from '../../../types';
 import Badge from '../../../components/common/Badge';
 
 const MACHINE_ICONS: Record<string, string> = {
   JCB: '🚜', Excavator: '⛏️', Crane: '🏗️', Bulldozer: '🚧', Roller: '🛞', Pokelane: '🛣️',
 };
+
+function StarRow({ rating, size = 13 }: { rating: number; size?: number }) {
+  return (
+    <div style={{ display: 'flex', gap: 2 }}>
+      {[1, 2, 3, 4, 5].map(s => (
+        <Star
+          key={s}
+          size={size}
+          color="#FF8C00"
+          fill={rating >= s ? '#FF8C00' : rating >= s - 0.5 ? '#FF8C00' : 'none'}
+          strokeWidth={1.5}
+        />
+      ))}
+    </div>
+  );
+}
+
+function RatingBar({ label, count, total }: { label: string; count: number; total: number }) {
+  const pct = total > 0 ? (count / total) * 100 : 0;
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+      <span style={{ fontSize: 12, color: '#6B7280', width: 28, flexShrink: 0 }}>{label}</span>
+      <div style={{ flex: 1, height: 6, background: '#F3F4F6', borderRadius: 99 }}>
+        <div style={{ width: `${pct}%`, height: '100%', background: '#FF8C00', borderRadius: 99, transition: 'width 0.4s ease' }} />
+      </div>
+      <span style={{ fontSize: 12, color: '#9CA3AF', width: 20, flexShrink: 0, textAlign: 'right' }}>{count}</span>
+    </div>
+  );
+}
 
 export default function MachineDetail() {
   const { id } = useParams();
@@ -17,11 +46,23 @@ export default function MachineDetail() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
+  const [reviews, setReviews] = useState<Review[]>([]);
+  const [avgRating, setAvgRating] = useState<number | null>(null);
+  const [reviewCount, setReviewCount] = useState(0);
+
   useEffect(() => {
     if (!id) return;
     setLoading(true);
-    getMachineById(id)
-      .then((res: any) => setMachine(res.machine || res))
+    Promise.all([
+      getMachineById(id) as Promise<any>,
+      getMachineReviews(id) as Promise<any>,
+    ])
+      .then(([mRes, rRes]) => {
+        setMachine(mRes.machine || mRes);
+        setReviews(rRes.reviews || []);
+        setAvgRating(rRes.avgRating ?? null);
+        setReviewCount(rRes.reviewCount ?? 0);
+      })
       .catch((err: any) => setError(err.message || 'Machine not found'))
       .finally(() => setLoading(false));
   }, [id]);
@@ -34,6 +75,12 @@ export default function MachineDetail() {
       <button onClick={() => navigate('/customer/search')} style={{ marginTop: 16, padding: '10px 24px', background: '#FF8C00', color: '#fff', border: 'none', borderRadius: 8, fontWeight: 700, cursor: 'pointer' }}>Back to Search</button>
     </div>
   );
+
+  // rating distribution
+  const dist = [5, 4, 3, 2, 1].map(s => ({
+    star: s,
+    count: reviews.filter(r => r.rating === s).length,
+  }));
 
   return (
     <div className="fade-in">
@@ -58,9 +105,18 @@ export default function MachineDetail() {
                   </div>
                   <Badge status={machine.isAvailable ? 'available' : 'unavailable'} />
                 </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: '#9CA3AF', fontSize: 14 }}>
-                  <MapPin size={14} strokeWidth={1.5} />
-                  {machine.location.city}, {machine.location.state}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: '#9CA3AF', fontSize: 14 }}>
+                    <MapPin size={14} strokeWidth={1.5} />
+                    {machine.location.city}, {machine.location.state}
+                  </div>
+                  {avgRating !== null && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                      <Star size={14} color="#FF8C00" fill="#FF8C00" strokeWidth={1.5} />
+                      <span style={{ color: '#fff', fontSize: 13, fontWeight: 700 }}>{avgRating}</span>
+                      <span style={{ color: '#6B7280', fontSize: 12 }}>({reviewCount})</span>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
@@ -104,6 +160,67 @@ export default function MachineDetail() {
             </div>
           </div>
 
+          {/* ─── Customer Reviews ─── */}
+          <div style={{ background: '#fff', borderRadius: 14, border: '1px solid #E5E7EB', padding: '20px 24px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 20 }}>
+              <MessageSquare size={16} color="#FF8C00" strokeWidth={1.5} />
+              <h3 style={{ fontSize: 15, fontWeight: 700, color: '#1A1D26', margin: 0 }}>Customer Reviews</h3>
+              {reviewCount > 0 && (
+                <span style={{ fontSize: 12, color: '#9CA3AF', marginLeft: 2 }}>({reviewCount})</span>
+              )}
+            </div>
+
+            {reviewCount === 0 ? (
+              <div style={{ textAlign: 'center', padding: '24px 0', color: '#9CA3AF' }}>
+                <div style={{ fontSize: 32, marginBottom: 8 }}>💬</div>
+                <div style={{ fontSize: 14 }}>No reviews yet. Be the first to book!</div>
+              </div>
+            ) : (
+              <>
+                {/* Rating summary */}
+                <div style={{ display: 'flex', gap: 28, alignItems: 'center', padding: '16px 20px', background: '#FFFBEB', borderRadius: 12, border: '1px solid #FDE68A', marginBottom: 20 }}>
+                  <div style={{ textAlign: 'center', flexShrink: 0 }}>
+                    <div style={{ fontSize: 44, fontWeight: 800, color: '#1A1D26', lineHeight: 1 }}>{avgRating}</div>
+                    <StarRow rating={avgRating!} size={14} />
+                    <div style={{ fontSize: 12, color: '#9CA3AF', marginTop: 4 }}>{reviewCount} review{reviewCount !== 1 ? 's' : ''}</div>
+                  </div>
+                  <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 6 }}>
+                    {dist.map(d => (
+                      <RatingBar key={d.star} label={`${d.star}★`} count={d.count} total={reviewCount} />
+                    ))}
+                  </div>
+                </div>
+
+                {/* Individual reviews */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                  {reviews.map(r => (
+                    <div key={r.id} style={{ padding: '14px 16px', borderRadius: 10, background: '#FAFAFA', border: '1px solid #F3F4F6' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                          <div style={{ width: 34, height: 34, borderRadius: '50%', background: '#1A1A2E', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#FF8C00', fontWeight: 800, fontSize: 13, flexShrink: 0 }}>
+                            {r.customerName.charAt(0).toUpperCase()}
+                          </div>
+                          <div>
+                            <div style={{ fontSize: 13, fontWeight: 700, color: '#1A1D26' }}>{r.customerName}</div>
+                            <StarRow rating={r.rating} size={11} />
+                          </div>
+                        </div>
+                        {r.createdAt && (
+                          <span style={{ fontSize: 11, color: '#9CA3AF' }}>
+                            {new Date(r.createdAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
+                          </span>
+                        )}
+                      </div>
+                      {r.review && (
+                        <p style={{ margin: 0, fontSize: 13, color: '#6B7280', lineHeight: 1.6, paddingLeft: 44 }}>{r.review}</p>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
+
           {/* Smart Estimate CTA */}
           <div onClick={() => navigate('/customer/estimate')}
             style={{ background: 'linear-gradient(135deg, #FF8C00, #FFAD33)', borderRadius: 14, padding: '18px 24px', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center', transition: 'opacity 0.15s' }}
@@ -138,10 +255,15 @@ export default function MachineDetail() {
                 </div>
               </div>
             </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: 4 }}>
-              {[1,2,3,4,5].map(s => <Star key={s} size={13} color="#FF8C00" fill="#FF8C00" strokeWidth={0} />)}
-              <span style={{ fontSize: 12, color: '#6B7280', marginLeft: 4 }}>4.8 (24 reviews)</span>
-            </div>
+            {/* Real rating or empty */}
+            {avgRating !== null ? (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+                <StarRow rating={avgRating} size={13} />
+                <span style={{ fontSize: 12, color: '#6B7280' }}>{avgRating} ({reviewCount} review{reviewCount !== 1 ? 's' : ''})</span>
+              </div>
+            ) : (
+              <div style={{ fontSize: 12, color: '#9CA3AF', marginBottom: 4 }}>No reviews yet</div>
+            )}
             <a href={`tel:${machine.vendorPhone}`} style={{
               display: 'flex', alignItems: 'center', gap: 8, justifyContent: 'center',
               padding: '10px', borderRadius: 8, marginTop: 14,

@@ -49,6 +49,9 @@ export const searchMachines = (params: { city?: string; category?: string; sortB
 export const getMachineById = (id: string) =>
   request(`/machines/${id}`, {}, false);
 
+export const getMachineReviews = (id: string) =>
+  request(`/machines/${id}/reviews`, {}, false);
+
 export const getCategories = () =>
   request('/machines/meta/categories', {}, false);
 

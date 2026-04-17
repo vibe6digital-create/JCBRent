@@ -171,6 +171,40 @@ export const getVendorMachines = async (req: AuthRequest, res: Response) => {
   }
 };
 
+export const getMachineReviews = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const snap = await db.collection('bookings')
+      .where('machineId', '==', id)
+      .where('status', '==', 'completed')
+      .get();
+
+    const reviews = snap.docs
+      .map(d => d.data())
+      .filter(b => b.rating != null && b.rating > 0)
+      .map(b => ({
+        id: b.id,
+        customerName: b.customerName || 'Customer',
+        rating: b.rating as number,
+        review: b.review || '',
+        createdAt: b.updatedAt
+          ? (typeof b.updatedAt === 'object' && '_seconds' in b.updatedAt
+              ? new Date(b.updatedAt._seconds * 1000).toISOString()
+              : b.updatedAt?.toDate?.().toISOString() ?? '')
+          : '',
+      }))
+      .sort((a, b) => (b.createdAt > a.createdAt ? 1 : -1));
+
+    const avgRating = reviews.length
+      ? Math.round((reviews.reduce((s, r) => s + r.rating, 0) / reviews.length) * 10) / 10
+      : null;
+
+    res.json({ reviews, avgRating, reviewCount: reviews.length });
+  } catch {
+    res.status(500).json({ error: 'Failed to fetch reviews' });
+  }
+};
+
 export const toggleAvailability = async (req: AuthRequest, res: Response) => {
   try {
     const machineRef = db.collection('machines').doc(req.params.id);

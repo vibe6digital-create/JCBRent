@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, Phone, Calendar, MapPin, IndianRupee, Clock, Star, Navigation, Check, XCircle, Printer } from 'lucide-react';
+import { ArrowLeft, Phone, Calendar, MapPin, IndianRupee, Clock, Star, Navigation, Check, XCircle, Printer, ThumbsUp } from 'lucide-react';
 import { getBookingById, rateBooking, cancelBooking } from '../../../services/api';
 import type { Booking } from '../../../types';
 import Badge from '../../../components/common/Badge';
@@ -27,6 +27,7 @@ export default function BookingDetail() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [rating, setRating] = useState(0);
+  const [hovered, setHovered] = useState(0);
   const [review, setReview] = useState('');
   const [rated, setRated] = useState(false);
   const [submittingRating, setSubmittingRating] = useState(false);
@@ -183,36 +184,73 @@ export default function BookingDetail() {
           </div>
 
           {/* Rating */}
-          {booking.status === 'completed' && !rated && !booking.rating && (
-            <div style={{ background: '#fff', borderRadius: 14, border: '1px solid #E5E7EB', padding: '20px 24px' }}>
-              <h3 style={{ fontSize: 14, fontWeight: 700, color: '#1A1D26', marginBottom: 14 }}>Rate Your Experience</h3>
-              <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
-                {[1,2,3,4,5].map(s => (
-                  <button key={s} onClick={() => setRating(s)} style={{
-                    background: 'none', border: 'none', cursor: 'pointer', padding: 2,
-                    transform: rating >= s ? 'scale(1.1)' : 'scale(1)', transition: 'transform 0.1s',
-                  }}>
-                    <Star size={32} color="#FF8C00" fill={rating >= s ? '#FF8C00' : 'none'} strokeWidth={1.5} />
-                  </button>
-                ))}
-              </div>
-              <textarea value={review} onChange={e => setReview(e.target.value)} placeholder="Share your experience (optional)..." rows={3}
-                style={{ width: '100%', padding: '10px 14px', border: '1.5px solid #E5E7EB', borderRadius: 8, fontSize: 14, color: '#1A1D26', resize: 'none', marginBottom: 12 }} />
-              <button onClick={handleRate} disabled={rating === 0 || submittingRating}
-                style={{ padding: '10px 24px', borderRadius: 8, background: rating > 0 ? '#FF8C00' : '#E5E7EB', color: rating > 0 ? '#fff' : '#9CA3AF', fontWeight: 700, fontSize: 13, border: 'none', cursor: rating > 0 ? 'pointer' : 'not-allowed' }}>
-                {submittingRating ? 'Submitting...' : 'Submit Rating'}
-              </button>
-            </div>
-          )}
-          {(rated || (booking.status === 'completed' && booking.rating)) && (
-            <div style={{ background: '#FFFBEB', borderRadius: 14, border: '1px solid #FDE68A', padding: '16px 20px', display: 'flex', gap: 12, alignItems: 'center' }}>
-              <div style={{ fontSize: 32 }}>⭐</div>
-              <div>
-                <div style={{ fontWeight: 700, fontSize: 14, color: '#1A1D26', marginBottom: 2 }}>
-                  You rated {rated ? rating : booking.rating} stars
+          {booking.status === 'completed' && !rated && !booking.rating && (() => {
+            const activeStars = hovered || rating;
+            const STAR_LABELS: Record<number, string> = { 1: 'Poor', 2: 'Fair', 3: 'Good', 4: 'Great', 5: 'Excellent' };
+            return (
+              <div style={{ background: '#fff', borderRadius: 14, border: '1px solid #E5E7EB', padding: '24px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 20 }}>
+                  <div style={{ width: 32, height: 32, background: '#FFF3E0', borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <Star size={16} color="#FF8C00" fill="#FF8C00" strokeWidth={1.5} />
+                  </div>
+                  <h3 style={{ fontSize: 15, fontWeight: 700, color: '#1A1D26', margin: 0 }}>Rate Your Experience</h3>
                 </div>
-                <div style={{ fontSize: 13, color: '#6B7280', fontStyle: 'italic' }}>{review || booking.review}</div>
+                {/* Stars */}
+                <div style={{ display: 'flex', gap: 10, marginBottom: 8, justifyContent: 'center' }}>
+                  {[1,2,3,4,5].map(s => (
+                    <button
+                      key={s}
+                      onMouseEnter={() => setHovered(s)}
+                      onMouseLeave={() => setHovered(0)}
+                      onClick={() => setRating(s)}
+                      style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4, transition: 'transform 0.1s', transform: activeStars >= s ? 'scale(1.15)' : 'scale(1)' }}
+                    >
+                      <Star size={36} color="#FF8C00" fill={activeStars >= s ? '#FF8C00' : 'none'} strokeWidth={1.5} />
+                    </button>
+                  ))}
+                </div>
+                <div style={{ textAlign: 'center', fontSize: 14, fontWeight: 700, color: activeStars ? '#FF8C00' : '#9CA3AF', marginBottom: 20, minHeight: 22, transition: 'color 0.15s' }}>
+                  {activeStars ? STAR_LABELS[activeStars] : 'Tap a star to rate'}
+                </div>
+                <textarea
+                  value={review}
+                  onChange={e => setReview(e.target.value)}
+                  placeholder="Share details about your experience (optional)"
+                  rows={3}
+                  maxLength={400}
+                  style={{ width: '100%', padding: '12px 14px', border: '1.5px solid #E5E7EB', borderRadius: 10, fontSize: 13, color: '#1A1D26', resize: 'none', fontFamily: 'inherit', boxSizing: 'border-box', marginBottom: 4 }}
+                />
+                <div style={{ fontSize: 11, color: '#9CA3AF', textAlign: 'right', marginBottom: 16 }}>{review.length}/400</div>
+                <button
+                  onClick={handleRate}
+                  disabled={rating === 0 || submittingRating}
+                  style={{ width: '100%', padding: '12px', borderRadius: 10, background: rating > 0 ? '#FF8C00' : '#E5E7EB', color: rating > 0 ? '#fff' : '#9CA3AF', fontWeight: 700, fontSize: 14, border: 'none', cursor: rating > 0 && !submittingRating ? 'pointer' : 'not-allowed', transition: 'all 0.15s' }}
+                >
+                  {submittingRating ? 'Submitting...' : 'Submit Review'}
+                </button>
               </div>
+            );
+          })()}
+          {(rated || (booking.status === 'completed' && booking.rating)) && (
+            <div style={{ background: '#F0FDF4', borderRadius: 14, border: '1px solid #86EFAC', padding: '20px 24px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
+                <div style={{ width: 36, height: 36, background: '#16A34A', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  <ThumbsUp size={16} color="#fff" strokeWidth={1.5} />
+                </div>
+                <div>
+                  <div style={{ fontWeight: 700, fontSize: 14, color: '#15803D' }}>Review Submitted!</div>
+                  <div style={{ fontSize: 12, color: '#4ADE80' }}>Thank you for your feedback</div>
+                </div>
+                <div style={{ marginLeft: 'auto', display: 'flex', gap: 3 }}>
+                  {[1,2,3,4,5].map(s => {
+                    const r = rated ? rating : (booking.rating ?? 0);
+                    return <Star key={s} size={16} color="#FF8C00" fill={r >= s ? '#FF8C00' : 'none'} strokeWidth={1.5} />;
+                  })}
+                </div>
+              </div>
+              {(review || booking.review) && (
+                <div style={{ paddingLeft: 46, fontSize: 13, color: '#6B7280', fontStyle: 'italic', lineHeight: 1.6 }}>"{review || booking.review}"</div>
+              )}
             </div>
           )}
         </div>
