@@ -82,6 +82,32 @@ export const toggleUserStatus = async (req: AuthRequest, res: Response) => {
   }
 };
 
+// ==================== VENDOR APPROVAL ====================
+export const updateVendorApproval = async (req: AuthRequest, res: Response) => {
+  try {
+    const { uid } = req.params;
+    const { vendorApprovalStatus } = req.body; // 'approved' | 'rejected'
+    if (!['approved', 'rejected'].includes(vendorApprovalStatus)) {
+      res.status(400).json({ error: 'vendorApprovalStatus must be approved or rejected' });
+      return;
+    }
+    const userRef = db.collection('users').doc(uid);
+    const userDoc = await userRef.get();
+    if (!userDoc.exists) {
+      res.status(404).json({ error: 'User not found' });
+      return;
+    }
+    if (userDoc.data()?.role !== 'vendor') {
+      res.status(400).json({ error: 'User is not a vendor' });
+      return;
+    }
+    await userRef.update({ vendorApprovalStatus, updatedAt: Timestamp.now() });
+    res.json({ message: `Vendor ${vendorApprovalStatus}`, uid });
+  } catch {
+    res.status(500).json({ error: 'Failed to update vendor approval' });
+  }
+};
+
 // ==================== MACHINE APPROVAL ====================
 export const getAllMachinesAdmin = async (_req: AuthRequest, res: Response) => {
   try {

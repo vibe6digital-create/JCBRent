@@ -1,6 +1,7 @@
 export type UserRole = 'customer' | 'vendor' | 'admin';
 export type MachineCategory = 'JCB' | 'Excavator' | 'Pokelane' | 'Crane' | 'Bulldozer' | 'Roller' | 'Other';
 export type ApprovalStatus = 'pending' | 'approved' | 'rejected';
+export type VendorApprovalStatus = 'pending' | 'approved' | 'rejected';
 export type BookingStatus = 'pending' | 'approved' | 'accepted' | 'arrived' | 'in_progress' | 'rejected' | 'completed' | 'cancelled';
 export type RateType = 'hourly' | 'daily' | 'weekly' | 'monthly';
 export type ProfileType = 'corporate' | 'personal';
@@ -19,6 +20,7 @@ export interface User {
   city?: string;
   state?: string;
   isActive: boolean;
+  vendorApprovalStatus?: VendorApprovalStatus;
   createdAt: string;
 }
 

@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { authenticate, authorize } from '../middleware/auth';
 import {
-  getDashboard, getAllUsers, toggleUserStatus,
+  getDashboard, getAllUsers, toggleUserStatus, updateVendorApproval,
   getAllMachinesAdmin, approveMachine,
   getAllBookings,
   getCategories, createCategory, updateCategory,
@@ -19,6 +19,7 @@ router.get('/dashboard', getDashboard);
 
 router.get('/users', getAllUsers);
 router.patch('/users/:uid/toggle-status', toggleUserStatus);
+router.patch('/vendors/:uid/approval', updateVendorApproval);
 
 router.get('/machines', getAllMachinesAdmin);
 router.patch('/machines/:id/approve', approveMachine);

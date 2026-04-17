@@ -35,6 +35,9 @@ export const getUsers = (params?: { role?: string; page?: number; limit?: number
 export const toggleUserStatus = (uid: string, _isActive: boolean) =>
   request(`/admin/users/${uid}/toggle-status`, { method: 'PATCH' });
 
+export const updateVendorApproval = (uid: string, vendorApprovalStatus: 'approved' | 'rejected') =>
+  request(`/admin/vendors/${uid}/approval`, { method: 'PATCH', body: JSON.stringify({ vendorApprovalStatus }) });
+
 // ─── Machines ────────────────────────────────────────────────────────────────
 
 export const getMachines = (params?: { status?: string; page?: number; limit?: number }) => {
