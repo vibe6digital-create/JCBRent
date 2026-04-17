@@ -3,6 +3,8 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:geolocator/geolocator.dart';
 import '../../config/app_config.dart';
 import '../../config/theme.dart';
 import '../../models/machine.dart';
@@ -39,6 +41,12 @@ class _CreateBookingScreenState extends State<CreateBookingScreen> {
   // Address autocomplete
   List<String> _addressSuggestions = [];
   Timer? _debounce;
+
+  // Map
+  GoogleMapController? _mapController;
+  LatLng? _pickedLatLng;
+  bool _locationLoading = false;
+  static const LatLng _defaultCenter = LatLng(20.5937, 78.9629); // India center
 
   // Duration quantity for weekly/monthly
   int _durationQty = 1;
@@ -100,6 +108,75 @@ class _CreateBookingScreenState extends State<CreateBookingScreen> {
         });
       }
     } catch (_) {}
+  }
+
+  Future<LatLng?> _geocodeAddress(String address) async {
+    try {
+      final url = Uri.parse(
+        'https://maps.googleapis.com/maps/api/geocode/json'
+        '?address=${Uri.encodeComponent(address)}'
+        '&key=${AppConfig.googleMapsApiKey}',
+      );
+      final resp = await http.get(url).timeout(const Duration(seconds: 5));
+      final data = jsonDecode(resp.body) as Map<String, dynamic>;
+      final results = data['results'] as List? ?? [];
+      if (results.isNotEmpty) {
+        final loc = results[0]['geometry']['location'];
+        return LatLng((loc['lat'] as num).toDouble(), (loc['lng'] as num).toDouble());
+      }
+    } catch (_) {}
+    return null;
+  }
+
+  Future<void> _reverseGeocode(LatLng latlng) async {
+    try {
+      final url = Uri.parse(
+        'https://maps.googleapis.com/maps/api/geocode/json'
+        '?latlng=${latlng.latitude},${latlng.longitude}'
+        '&key=${AppConfig.googleMapsApiKey}',
+      );
+      final resp = await http.get(url).timeout(const Duration(seconds: 5));
+      final data = jsonDecode(resp.body) as Map<String, dynamic>;
+      final results = data['results'] as List? ?? [];
+      if (results.isNotEmpty && mounted) {
+        setState(() {
+          _addressController.text = results[0]['formatted_address'] as String;
+          _addressSuggestions = [];
+        });
+      }
+    } catch (_) {}
+  }
+
+  Future<void> _useMyLocation() async {
+    setState(() => _locationLoading = true);
+    try {
+      LocationPermission perm = await Geolocator.checkPermission();
+      if (perm == LocationPermission.denied) {
+        perm = await Geolocator.requestPermission();
+      }
+      if (perm == LocationPermission.denied || perm == LocationPermission.deniedForever) {
+        if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Location permission denied')));
+        return;
+      }
+      final pos = await Geolocator.getCurrentPosition(
+        locationSettings: const LocationSettings(accuracy: LocationAccuracy.high),
+      );
+      final latlng = LatLng(pos.latitude, pos.longitude);
+      if (mounted) setState(() => _pickedLatLng = latlng);
+      _mapController?.animateCamera(CameraUpdate.newLatLngZoom(latlng, 16));
+      await _reverseGeocode(latlng);
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Could not get location: $e')));
+    } finally {
+      if (mounted) setState(() => _locationLoading = false);
+    }
+  }
+
+  Future<void> _onMapTap(LatLng latlng) async {
+    setState(() => _pickedLatLng = latlng);
+    await _reverseGeocode(latlng);
   }
 
   @override
@@ -379,6 +456,37 @@ class _CreateBookingScreenState extends State<CreateBookingScreen> {
             if (_currentStep == 1) ...[
               const Text('Work Location', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
               const SizedBox(height: 8),
+
+              // Use My Location button
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  onPressed: _locationLoading ? null : _useMyLocation,
+                  icon: _locationLoading
+                      ? const SizedBox(width: 16, height: 16,
+                          child: CircularProgressIndicator(strokeWidth: 2))
+                      : const Icon(Icons.my_location, size: 18),
+                  label: Text(_locationLoading ? 'Getting location...' : 'Use My Current Location'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: Colors.blue[700],
+                    side: BorderSide(color: Colors.blue[300]!),
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 10),
+              Row(children: [
+                Expanded(child: Divider(color: Colors.grey[300])),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 10),
+                  child: Text('or type address', style: TextStyle(color: Colors.grey[500], fontSize: 12)),
+                ),
+                Expanded(child: Divider(color: Colors.grey[300])),
+              ]),
+              const SizedBox(height: 10),
+
+              // Address field + autocomplete dropdown
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -392,7 +500,10 @@ class _CreateBookingScreenState extends State<CreateBookingScreen> {
                               icon: const Icon(Icons.clear, size: 18),
                               onPressed: () {
                                 _addressController.clear();
-                                setState(() => _addressSuggestions = []);
+                                setState(() {
+                                  _addressSuggestions = [];
+                                  _pickedLatLng = null;
+                                });
                               },
                             )
                           : null,
@@ -408,7 +519,7 @@ class _CreateBookingScreenState extends State<CreateBookingScreen> {
                       _debounce = Timer(const Duration(milliseconds: 400), () {
                         _fetchAddressSuggestions(v);
                       });
-                      setState(() {}); // refresh clear button
+                      setState(() {});
                     },
                   ),
                   if (_addressSuggestions.isNotEmpty)
@@ -426,9 +537,15 @@ class _CreateBookingScreenState extends State<CreateBookingScreen> {
                       ),
                       child: Column(
                         children: _addressSuggestions.map((suggestion) => InkWell(
-                          onTap: () {
+                          onTap: () async {
                             _addressController.text = suggestion;
                             setState(() => _addressSuggestions = []);
+                            final latlng = await _geocodeAddress(suggestion);
+                            if (latlng != null && mounted) {
+                              setState(() => _pickedLatLng = latlng);
+                              _mapController?.animateCamera(
+                                CameraUpdate.newLatLngZoom(latlng, 16));
+                            }
                           },
                           child: Padding(
                             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -451,6 +568,73 @@ class _CreateBookingScreenState extends State<CreateBookingScreen> {
                     ),
                 ],
               ),
+              const SizedBox(height: 16),
+
+              // Map
+              ClipRRect(
+                borderRadius: BorderRadius.circular(16),
+                child: SizedBox(
+                  height: 220,
+                  child: Stack(
+                    children: [
+                      GoogleMap(
+                        initialCameraPosition: CameraPosition(
+                          target: _pickedLatLng ?? _defaultCenter,
+                          zoom: _pickedLatLng != null ? 15 : 5,
+                        ),
+                        onMapCreated: (c) => _mapController = c,
+                        onTap: _onMapTap,
+                        markers: _pickedLatLng == null ? {} : {
+                          Marker(
+                            markerId: const MarkerId('work_location'),
+                            position: _pickedLatLng!,
+                            draggable: true,
+                            onDragEnd: _onMapTap,
+                            infoWindow: const InfoWindow(title: 'Work Location'),
+                          ),
+                        },
+                        myLocationButtonEnabled: false,
+                        zoomControlsEnabled: true,
+                        mapToolbarEnabled: false,
+                      ),
+                      // Tap-to-pin hint when no pin yet
+                      if (_pickedLatLng == null)
+                        Positioned(
+                          bottom: 0, left: 0, right: 0,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(vertical: 8),
+                            color: Colors.black.withAlpha(120),
+                            child: const Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(Icons.touch_app, color: Colors.white, size: 16),
+                                SizedBox(width: 6),
+                                Text('Tap on map to drop a pin',
+                                  style: TextStyle(color: Colors.white, fontSize: 12)),
+                              ],
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+              ),
+              if (_pickedLatLng != null)
+                Padding(
+                  padding: const EdgeInsets.only(top: 6),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.check_circle, color: Colors.green, size: 14),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: Text(
+                          'Pin set · drag it to adjust exact location',
+                          style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               const SizedBox(height: 16),
 
               const Text('Additional Notes', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
@@ -713,6 +897,8 @@ class _CreateBookingScreenState extends State<CreateBookingScreen> {
         workLocation: {
           'address': _addressController.text,
           'city': widget.machine.location.city,
+          if (_pickedLatLng != null) 'lat': _pickedLatLng!.latitude,
+          if (_pickedLatLng != null) 'lng': _pickedLatLng!.longitude,
         },
         notes: _notesController.text,
         estimateId: widget.estimateId,
@@ -775,6 +961,7 @@ class _CreateBookingScreenState extends State<CreateBookingScreen> {
     _addressController.dispose();
     _notesController.dispose();
     _couponController.dispose();
+    _mapController?.dispose();
     super.dispose();
   }
 }
