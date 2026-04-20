@@ -8,6 +8,7 @@ import Machines from './pages/Machines/Machines';
 import Bookings from './pages/Bookings/Bookings';
 import Estimates from './pages/Estimates/Estimates';
 import Categories from './pages/Categories/Categories';
+import Models from './pages/Models/Models';
 import ServiceAreas from './pages/ServiceAreas/ServiceAreas';
 import Coupons from './pages/Coupons/Coupons';
 import Analytics from './pages/Analytics/Analytics';
@@ -45,6 +46,7 @@ function ProtectedRoutes() {
         <Route path="/bookings" element={<Bookings />} />
         <Route path="/estimates" element={<Estimates />} />
         <Route path="/categories" element={<Categories />} />
+        <Route path="/models" element={<Models />} />
         <Route path="/service-areas" element={<ServiceAreas />} />
         <Route path="/coupons" element={<Coupons />} />
         <Route path="/analytics" element={<Analytics />} />

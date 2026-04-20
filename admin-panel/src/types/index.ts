@@ -9,6 +9,8 @@ export type WorkType = 'excavation' | 'leveling' | 'trenching' | 'foundation' | 
 export type AreaSize = 'small' | 'medium' | 'large';
 export type SoilType = 'soft' | 'mixed' | 'hard_rocky' | 'not_sure';
 
+export type VerificationStatus = 'pending' | 'verified' | 'rejected';
+
 export interface User {
   uid: string;
   phone: string;
@@ -20,6 +22,13 @@ export interface User {
   state?: string;
   isActive: boolean;
   createdAt: string;
+  // KYC / verification (vendors)
+  licenseUrl?: string;
+  aadhaarUrl?: string;
+  signatureUrl?: string;
+  verificationStatus?: VerificationStatus;
+  verifiedAt?: any;
+  rejectionReason?: string;
 }
 
 export interface Machine {
@@ -94,6 +103,14 @@ export interface ServiceArea {
   id: string;
   city: string;
   state: string;
+  isActive: boolean;
+  createdAt: string;
+}
+
+export interface MachineModel {
+  id: string;
+  name: string;
+  category: string;
   isActive: boolean;
   createdAt: string;
 }

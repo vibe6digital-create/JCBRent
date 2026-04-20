@@ -1,4 +1,7 @@
+import 'dart:io';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_storage/firebase_storage.dart';
+import 'package:image_picker/image_picker.dart';
 import 'api_service.dart';
 
 class AuthService {
@@ -58,6 +61,10 @@ class AuthService {
     String? email,
     String? city,
     String? state,
+    String? signatureUrl,
+    String? licenseUrl,
+    String? aadhaarUrl,
+    bool termsAccepted = false,
   }) async {
     return await _api.post('/auth/register', body: {
       'name': name,
@@ -65,7 +72,34 @@ class AuthService {
       'email': email ?? '',
       'city': city ?? '',
       'state': state ?? '',
+      if (signatureUrl != null) 'signatureUrl': signatureUrl,
+      if (licenseUrl != null) 'licenseUrl': licenseUrl,
+      if (aadhaarUrl != null) 'aadhaarUrl': aadhaarUrl,
+      if (termsAccepted) 'termsAccepted': true,
     });
+  }
+
+  /// Uploads a signature image to Firebase Storage under profiles/{uid}/
+  /// Returns the public download URL.
+  Future<String> uploadSignature(XFile image) =>
+      _uploadProfileDoc(image, kind: 'signature');
+
+  /// Uploads driving licence photo to profiles/{uid}/license_*.jpg
+  Future<String> uploadLicense(XFile image) =>
+      _uploadProfileDoc(image, kind: 'license');
+
+  /// Uploads Aadhaar card photo to profiles/{uid}/aadhaar_*.jpg
+  Future<String> uploadAadhaar(XFile image) =>
+      _uploadProfileDoc(image, kind: 'aadhaar');
+
+  Future<String> _uploadProfileDoc(XFile image, {required String kind}) async {
+    final uid = _auth.currentUser?.uid;
+    if (uid == null) throw Exception('Not signed in');
+    final ref = FirebaseStorage.instance
+        .ref()
+        .child('profiles/$uid/${kind}_${DateTime.now().millisecondsSinceEpoch}.jpg');
+    await ref.putFile(File(image.path));
+    return await ref.getDownloadURL();
   }
 
   Future<Map<String, dynamic>> getProfile() async {

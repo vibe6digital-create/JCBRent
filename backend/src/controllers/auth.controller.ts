@@ -155,20 +155,41 @@ export const verifyOtp = async (req: Request, res: Response) => {
 export const createOrUpdateUser = async (req: AuthRequest, res: Response) => {
   try {
     const { uid } = req.user!;
-    const { name, email, role, city, state, referralCode, profileType } = req.body;
+    const {
+      name, email, role, city, state, referralCode, profileType,
+      signatureUrl, termsAccepted,
+      licenseUrl, aadhaarUrl,
+    } = req.body;
 
     const userRole: UserRole = role === 'vendor' ? 'vendor' : 'customer';
     const userRef = db.collection('users').doc(uid);
     const userDoc = await userRef.get();
 
+    // If vendor has just submitted KYC (license + aadhaar), flag them for admin review
+    const kycJustSubmitted = Boolean(licenseUrl && aadhaarUrl);
+
     if (userDoc.exists) {
       const existingRole = userDoc.data()?.role;
+      const existingStatus = userDoc.data()?.verificationStatus;
       const updateData: Record<string, unknown> = { updatedAt: Timestamp.now() };
       if (name) updateData.name = name;
       if (email) updateData.email = email;
       if (city) updateData.city = city;
       if (state) updateData.state = state;
       if (profileType) updateData.profileType = profileType;
+      if (signatureUrl) updateData.signatureUrl = signatureUrl;
+      if (licenseUrl) updateData.licenseUrl = licenseUrl;
+      if (aadhaarUrl) updateData.aadhaarUrl = aadhaarUrl;
+      if (termsAccepted === true) {
+        updateData.termsAccepted = true;
+        updateData.termsAcceptedAt = Timestamp.now();
+      }
+      // Reset verification to pending when fresh KYC docs are (re-)submitted,
+      // unless the vendor is already verified (no-op in that case).
+      if (kycJustSubmitted && existingStatus !== 'verified') {
+        updateData.verificationStatus = 'pending';
+        updateData.verificationSubmittedAt = Timestamp.now();
+      }
       // Allow role upgrade: customer → vendor (never downgrade vendor → customer)
       if (role === 'vendor' && existingRole !== 'vendor') {
         updateData.role = 'vendor';
@@ -197,6 +218,13 @@ export const createOrUpdateUser = async (req: AuthRequest, res: Response) => {
         profileType: profileType || 'personal',
         referralCode: uid.slice(0, 6).toUpperCase(),
         ...(referredBy ? { referredBy } : {}),
+        ...(signatureUrl ? { signatureUrl } : {}),
+        ...(licenseUrl ? { licenseUrl } : {}),
+        ...(aadhaarUrl ? { aadhaarUrl } : {}),
+        ...(termsAccepted === true ? { termsAccepted: true, termsAcceptedAt: Timestamp.now() } : {}),
+        ...(userRole === 'vendor' && kycJustSubmitted
+          ? { verificationStatus: 'pending', verificationSubmittedAt: Timestamp.now() }
+          : {}),
         isActive: true,
         ...(userRole === 'vendor' ? { isOnline: false } : {}),
         createdAt: Timestamp.now(),

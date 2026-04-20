@@ -3,13 +3,14 @@ import { authenticate, authorize } from '../middleware/auth';
 import {
   createBooking, updateBookingStatus, getCustomerBookings,
   getVendorBookings, getBookingById, markArrived, verifyStartOtp, getVendorEarnings, rateBooking,
-  validateCoupon, updateVendorLocation, cancelBooking,
+  validateCoupon, updateVendorLocation, cancelBooking, getTrafficHeatmap,
 } from '../controllers/bookings.controller';
 
 const router = Router();
 
 // Must be before /:id routes
 router.post('/validate-coupon', authenticate, validateCoupon);
+router.get('/traffic-heatmap', authenticate, authorize('vendor'), getTrafficHeatmap);
 
 router.post('/', authenticate, authorize('customer'), createBooking);
 router.get('/customer', authenticate, authorize('customer'), getCustomerBookings);

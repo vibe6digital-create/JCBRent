@@ -2,6 +2,7 @@ import { Response } from 'express';
 import { db, Timestamp, messaging } from '../config/firebase';
 import { AuthRequest } from '../middleware/auth';
 import { v4 as uuidv4 } from 'uuid';
+import { lookupCentroid } from '../utils/cityCentroids';
 
 async function sendPush(userId: string, title: string, body: string): Promise<void> {
   try {
@@ -620,5 +621,63 @@ export const getVendorEarnings = async (req: AuthRequest, res: Response) => {
     res.json({ earnings: { total, month, thisMonth: month } });
   } catch {
     res.status(500).json({ error: 'Failed to fetch earnings' });
+  }
+};
+
+// ── Traffic heatmap — aggregates recent bookings by work location ────────────
+// Vendor-facing: shows which areas have the highest customer demand so
+// vendors know where to expand their service coverage.
+export const getTrafficHeatmap = async (req: AuthRequest, res: Response) => {
+  try {
+    const days = Math.max(1, Math.min(365, Number(req.query.days) || 90));
+    const since = Timestamp.fromDate(new Date(Date.now() - days * 24 * 60 * 60 * 1000));
+
+    const snap = await db.collection('bookings')
+      .where('createdAt', '>=', since)
+      .get();
+
+    // Aggregate: key = rounded lat/lng cell (if explicit coords) OR city name.
+    const buckets = new Map<string, { lat: number; lng: number; city: string; count: number }>();
+
+    for (const doc of snap.docs) {
+      const b = doc.data();
+      const loc = b.workLocation || {};
+      let lat: number | null = null;
+      let lng: number | null = null;
+      let city: string = (loc.city || '').toString().trim();
+
+      // 1) Explicit lat/lng on workLocation
+      if (typeof loc.lat === 'number' && typeof loc.lng === 'number') {
+        lat = loc.lat;
+        lng = loc.lng;
+      } else if (typeof loc.latitude === 'number' && typeof loc.longitude === 'number') {
+        lat = loc.latitude;
+        lng = loc.longitude;
+      }
+
+      // 2) Fall back to city centroid
+      if (lat === null || lng === null) {
+        const centroid = lookupCentroid(city);
+        if (centroid) { lat = centroid.lat; lng = centroid.lng; }
+      }
+
+      // Still nothing — skip this booking
+      if (lat === null || lng === null) continue;
+
+      // Use city name as bucket key if we have one, else a rounded lat/lng cell
+      const key = city || `${lat.toFixed(2)},${lng.toFixed(2)}`;
+      const existing = buckets.get(key);
+      if (existing) {
+        existing.count += 1;
+      } else {
+        buckets.set(key, { lat, lng, city: city || 'Unknown', count: 1 });
+      }
+    }
+
+    const points = Array.from(buckets.values()).sort((a, b) => b.count - a.count);
+    res.json({ points, windowDays: days, totalBookings: snap.size });
+  } catch (err) {
+    console.error('getTrafficHeatmap:', err);
+    res.status(500).json({ error: 'Failed to build traffic heatmap' });
   }
 };

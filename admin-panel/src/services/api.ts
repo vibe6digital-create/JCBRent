@@ -35,6 +35,12 @@ export const getUsers = (params?: { role?: string; page?: number; limit?: number
 export const toggleUserStatus = (uid: string, _isActive: boolean) =>
   request(`/admin/users/${uid}/toggle-status`, { method: 'PATCH' });
 
+export const verifyVendor = (uid: string, status: 'verified' | 'rejected' | 'pending', rejectionReason?: string) =>
+  request(`/admin/users/${uid}/verify`, {
+    method: 'PATCH',
+    body: JSON.stringify({ status, ...(rejectionReason ? { rejectionReason } : {}) }),
+  });
+
 // ─── Machines ────────────────────────────────────────────────────────────────
 
 export const getMachines = (params?: { status?: string; page?: number; limit?: number }) => {
@@ -96,6 +102,19 @@ export const updateServiceArea = (id: string, body: { isActive?: boolean; city?:
 
 export const deleteServiceArea = (id: string) =>
   request(`/admin/service-areas/${id}`, { method: 'DELETE' });
+
+// ─── Machine Models ──────────────────────────────────────────────────────────
+
+export const getMachineModels = () => request('/admin/models');
+
+export const createMachineModel = (body: { name: string; category: string }) =>
+  request('/admin/models', { method: 'POST', body: JSON.stringify(body) });
+
+export const updateMachineModel = (id: string, body: { name?: string; category?: string; isActive?: boolean }) =>
+  request(`/admin/models/${id}`, { method: 'PUT', body: JSON.stringify(body) });
+
+export const deleteMachineModel = (id: string) =>
+  request(`/admin/models/${id}`, { method: 'DELETE' });
 
 // ─── Coupons ──────────────────────────────────────────────────────────────────
 

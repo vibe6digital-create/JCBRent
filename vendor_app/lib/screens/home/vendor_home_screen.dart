@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
 import '../../config/theme.dart';
 import '../../services/auth_service.dart';
 import '../../services/booking_service.dart';
@@ -95,6 +96,8 @@ class _DashboardBodyState extends State<_DashboardBody> {
   String? _error;
   bool _isOnline = false;
   bool _isUpdatingStatus = false;
+  List<Map<String, dynamic>> _trafficPoints = [];
+  bool _isLoadingTraffic = true;
 
   @override
   void initState() {
@@ -164,6 +167,28 @@ class _DashboardBodyState extends State<_DashboardBody> {
       _earnings = earnings;
       _isLoading = false;
     });
+
+    _loadTraffic();
+  }
+
+  Future<void> _loadTraffic() async {
+    if (!mounted) return;
+    setState(() => _isLoadingTraffic = true);
+    try {
+      final points = await _bookingService.getTrafficHeatmap(days: 90);
+      if (!mounted) return;
+      setState(() {
+        _trafficPoints = points;
+        _isLoadingTraffic = false;
+      });
+    } catch (_) {
+      if (mounted) {
+        setState(() {
+          _trafficPoints = [];
+          _isLoadingTraffic = false;
+        });
+      }
+    }
   }
 
   Future<void> _toggleOnlineStatus() async {
@@ -361,6 +386,19 @@ class _DashboardBodyState extends State<_DashboardBody> {
               ),
               const SizedBox(height: 28),
 
+              // Customer demand heatmap
+              const Text('Customer Demand',
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700, color: AppTheme.textPrimary)),
+              const SizedBox(height: 4),
+              Text('Areas with the most bookings over the last 90 days',
+                style: TextStyle(fontSize: 13, color: Colors.grey[600])),
+              const SizedBox(height: 12),
+              _TrafficHeatmapCard(
+                points: _trafficPoints,
+                isLoading: _isLoadingTraffic,
+              ),
+              const SizedBox(height: 28),
+
               // Recent bookings
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -525,6 +563,183 @@ class _StatCard extends StatelessWidget {
           const Spacer(),
           Text(value, style: TextStyle(fontSize: 26, fontWeight: FontWeight.w800, color: color)),
           Text(label, style: const TextStyle(color: AppTheme.textSecondary, fontSize: 13, fontWeight: FontWeight.w500)),
+        ],
+      ),
+    );
+  }
+}
+
+class _TrafficHeatmapCard extends StatelessWidget {
+  final List<Map<String, dynamic>> points;
+  final bool isLoading;
+  const _TrafficHeatmapCard({required this.points, required this.isLoading});
+
+  // India centroid — used as the initial camera target.
+  static const CameraPosition _initialCamera = CameraPosition(
+    target: LatLng(22.5937, 78.9629),
+    zoom: 4.2,
+  );
+
+  @override
+  Widget build(BuildContext context) {
+    if (isLoading) {
+      return Container(
+        height: 240,
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: [AppTheme.softShadow],
+        ),
+        child: const Center(child: CircularProgressIndicator(color: AppTheme.accentColor)),
+      );
+    }
+
+    if (points.isEmpty) {
+      return Container(
+        height: 180,
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: [AppTheme.softShadow],
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.location_off_outlined, size: 36, color: Colors.grey[400]),
+            const SizedBox(height: 10),
+            Text('No demand data yet',
+              style: TextStyle(color: Colors.grey[700], fontWeight: FontWeight.w600, fontSize: 14)),
+            const SizedBox(height: 4),
+            Text('Customer bookings will appear here as they come in',
+              style: TextStyle(color: Colors.grey[500], fontSize: 12),
+              textAlign: TextAlign.center),
+          ],
+        ),
+      );
+    }
+
+    // Max count is used to scale circle size & opacity.
+    final maxCount = points.map((p) => (p['count'] as num).toInt()).reduce((a, b) => a > b ? a : b);
+
+    final circles = <Circle>{};
+    final markers = <Marker>{};
+    for (final p in points) {
+      final lat = (p['lat'] as num).toDouble();
+      final lng = (p['lng'] as num).toDouble();
+      final count = (p['count'] as num).toInt();
+      final city = (p['city'] ?? '') as String;
+      final intensity = maxCount == 0 ? 0.0 : count / maxCount;
+      // Radius 12km baseline + up to ~50km for the hottest city.
+      final radiusMeters = 12000 + intensity * 50000;
+      final fillAlpha = (38 + 115 * intensity).round().clamp(0, 255);
+      circles.add(Circle(
+        circleId: CircleId('c_$city'),
+        center: LatLng(lat, lng),
+        radius: radiusMeters,
+        fillColor: AppTheme.accentColor.withAlpha(fillAlpha),
+        strokeColor: AppTheme.accentColor.withAlpha(150),
+        strokeWidth: 1,
+      ));
+      markers.add(Marker(
+        markerId: MarkerId('m_$city'),
+        position: LatLng(lat, lng),
+        infoWindow: InfoWindow(title: city, snippet: '$count booking${count == 1 ? '' : 's'}'),
+      ));
+    }
+
+    // Build camera that frames all points.
+    final lats = points.map((p) => (p['lat'] as num).toDouble());
+    final lngs = points.map((p) => (p['lng'] as num).toDouble());
+    final south = lats.reduce((a, b) => a < b ? a : b);
+    final north = lats.reduce((a, b) => a > b ? a : b);
+    final west = lngs.reduce((a, b) => a < b ? a : b);
+    final east = lngs.reduce((a, b) => a > b ? a : b);
+    final bounds = LatLngBounds(
+      southwest: LatLng(south, west),
+      northeast: LatLng(north, east),
+    );
+
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [AppTheme.softShadow],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          ClipRRect(
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+            child: SizedBox(
+              height: 240,
+              child: GoogleMap(
+                initialCameraPosition: _initialCamera,
+                circles: circles,
+                markers: markers,
+                myLocationButtonEnabled: false,
+                zoomControlsEnabled: false,
+                mapToolbarEnabled: false,
+                onMapCreated: (controller) {
+                  if (points.length > 1) {
+                    Future.delayed(const Duration(milliseconds: 300), () {
+                      controller.animateCamera(CameraUpdate.newLatLngBounds(bounds, 48));
+                    });
+                  } else {
+                    controller.animateCamera(
+                      CameraUpdate.newLatLngZoom(LatLng(
+                        (points.first['lat'] as num).toDouble(),
+                        (points.first['lng'] as num).toDouble(),
+                      ), 9),
+                    );
+                  }
+                },
+              ),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 14),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      width: 10, height: 10,
+                      decoration: const BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: AppTheme.accentColor,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Text('${points.length} hot area${points.length == 1 ? '' : 's'}',
+                      style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppTheme.textPrimary)),
+                    const SizedBox(width: 10),
+                    Text('• bigger circle = more demand',
+                      style: TextStyle(fontSize: 12, color: Colors.grey[600])),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 6,
+                  runSpacing: 6,
+                  children: points.take(5).map((p) {
+                    final city = (p['city'] ?? '') as String;
+                    final count = (p['count'] as num).toInt();
+                    return Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                      decoration: BoxDecoration(
+                        color: AppTheme.accentColor.withAlpha(26),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text('$city · $count',
+                        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppTheme.accentColor)),
+                    );
+                  }).toList(),
+                ),
+              ],
+            ),
+          ),
         ],
       ),
     );

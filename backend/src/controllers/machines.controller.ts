@@ -21,13 +21,17 @@ function serializeMachine(data: any): any {
 export const createMachine = async (req: AuthRequest, res: Response) => {
   try {
     const { uid } = req.user!;
-    const { category, model, description, hourlyRate, dailyRate, location, serviceAreas } = req.body;
+    const {
+      category, model, description, hourlyRate, dailyRate, location, serviceAreas,
+      yearOfManufacture, weeklyRate, monthlyRate, sixMonthRate, yearlyRate,
+      rcUrl, fitnessUrl, insuranceUrl, images: bodyImages,
+    } = req.body;
 
     const userDoc = await db.collection('users').doc(uid).get();
     const vendorName = userDoc.data()?.name || '';
 
-    const imageUrls: string[] = [];
-    if (req.files && Array.isArray(req.files)) {
+    let imageUrls: string[] = [];
+    if (req.files && Array.isArray(req.files) && req.files.length > 0) {
       const bucket = storage.bucket();
       for (const file of req.files) {
         const fileName = `machines/${uid}/${uuidv4()}-${file.originalname}`;
@@ -35,10 +39,13 @@ export const createMachine = async (req: AuthRequest, res: Response) => {
         await blob.save(file.buffer, { contentType: file.mimetype, public: true });
         imageUrls.push(`https://storage.googleapis.com/${bucket.name}/${fileName}`);
       }
+    } else if (Array.isArray(bodyImages)) {
+      // Client-side Firebase Storage upload — body carries URLs
+      imageUrls = bodyImages.map(String);
     }
 
     const machineId = uuidv4();
-    const machine = {
+    const machine: Record<string, any> = {
       id: machineId,
       vendorId: uid,
       vendorName,
@@ -47,6 +54,7 @@ export const createMachine = async (req: AuthRequest, res: Response) => {
       description: description || '',
       hourlyRate: Number(hourlyRate),
       dailyRate: Number(dailyRate),
+      weeklyRate: Number(weeklyRate),
       images: imageUrls,
       location: typeof location === 'string' ? JSON.parse(location) : location,
       serviceAreas: typeof serviceAreas === 'string' ? JSON.parse(serviceAreas) : serviceAreas || [],
@@ -55,6 +63,25 @@ export const createMachine = async (req: AuthRequest, res: Response) => {
       createdAt: Timestamp.now(),
       updatedAt: Timestamp.now(),
     };
+
+    // Mandatory compliance/documents
+    if (yearOfManufacture !== undefined && yearOfManufacture !== null && yearOfManufacture !== '') {
+      machine.yearOfManufacture = Number(yearOfManufacture);
+    }
+    if (rcUrl) machine.rcUrl = String(rcUrl);
+    if (fitnessUrl) machine.fitnessUrl = String(fitnessUrl);
+    if (insuranceUrl) machine.insuranceUrl = String(insuranceUrl);
+
+    // Optional rate tiers
+    if (monthlyRate !== undefined && monthlyRate !== null && monthlyRate !== '') {
+      machine.monthlyRate = Number(monthlyRate);
+    }
+    if (sixMonthRate !== undefined && sixMonthRate !== null && sixMonthRate !== '') {
+      machine.sixMonthRate = Number(sixMonthRate);
+    }
+    if (yearlyRate !== undefined && yearlyRate !== null && yearlyRate !== '') {
+      machine.yearlyRate = Number(yearlyRate);
+    }
 
     await db.collection('machines').doc(machineId).set(machine);
     res.status(201).json({ machine: serializeMachine(machine) });

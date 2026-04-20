@@ -1,11 +1,12 @@
 import { Router } from 'express';
 import { authenticate, authorize } from '../middleware/auth';
 import {
-  getDashboard, getAllUsers, toggleUserStatus,
+  getDashboard, getAllUsers, toggleUserStatus, verifyVendor,
   getAllMachinesAdmin, approveMachine,
   getAllBookings,
   getCategories, createCategory, updateCategory,
   getServiceAreas, createServiceArea, updateServiceArea,
+  getMachineModels, createMachineModel, updateMachineModel, deleteMachineModel,
   getAllEstimates,
   getCoupons, createCoupon, updateCoupon, deleteCoupon,
 } from '../controllers/admin.controller';
@@ -19,6 +20,7 @@ router.get('/dashboard', getDashboard);
 
 router.get('/users', getAllUsers);
 router.patch('/users/:uid/toggle-status', toggleUserStatus);
+router.patch('/users/:uid/verify', verifyVendor);
 
 router.get('/machines', getAllMachinesAdmin);
 router.patch('/machines/:id/approve', approveMachine);
@@ -32,6 +34,11 @@ router.put('/categories/:id', updateCategory);
 router.get('/service-areas', getServiceAreas);
 router.post('/service-areas', createServiceArea);
 router.put('/service-areas/:id', updateServiceArea);
+
+router.get('/models', getMachineModels);
+router.post('/models', createMachineModel);
+router.put('/models/:id', updateMachineModel);
+router.delete('/models/:id', deleteMachineModel);
 
 router.get('/estimates', getAllEstimates);
 

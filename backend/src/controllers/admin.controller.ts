@@ -65,6 +65,46 @@ export const getAllUsers = async (req: AuthRequest, res: Response) => {
   }
 };
 
+export const verifyVendor = async (req: AuthRequest, res: Response) => {
+  try {
+    const { uid } = req.params;
+    const { status, rejectionReason } = req.body;
+    if (status !== 'verified' && status !== 'rejected' && status !== 'pending') {
+      res.status(400).json({ error: 'status must be verified, rejected, or pending' });
+      return;
+    }
+    const userRef = db.collection('users').doc(uid);
+    const userDoc = await userRef.get();
+    if (!userDoc.exists) {
+      res.status(404).json({ error: 'User not found' });
+      return;
+    }
+    if (userDoc.data()?.role !== 'vendor') {
+      res.status(400).json({ error: 'Target user is not a vendor' });
+      return;
+    }
+    const update: Record<string, unknown> = {
+      verificationStatus: status,
+      updatedAt: Timestamp.now(),
+    };
+    if (status === 'verified') {
+      update.verifiedAt = Timestamp.now();
+      update.verifiedBy = req.user!.uid;
+      update.rejectionReason = null;
+    } else if (status === 'rejected') {
+      update.rejectionReason = rejectionReason || 'Documents not accepted';
+      update.verifiedAt = null;
+      update.verifiedBy = null;
+    } else {
+      update.rejectionReason = null;
+    }
+    await userRef.update(update);
+    res.json({ message: `Vendor ${status}`, uid });
+  } catch {
+    res.status(500).json({ error: 'Failed to update vendor verification' });
+  }
+};
+
 export const toggleUserStatus = async (req: AuthRequest, res: Response) => {
   try {
     const userRef = db.collection('users').doc(req.params.uid);
@@ -174,6 +214,80 @@ export const updateServiceArea = async (req: AuthRequest, res: Response) => {
     res.json({ message: 'Service area updated' });
   } catch {
     res.status(500).json({ error: 'Failed to update service area' });
+  }
+};
+
+// ==================== MACHINE MODEL MANAGEMENT ====================
+export const getMachineModels = async (_req: AuthRequest, res: Response) => {
+  try {
+    const snapshot = await db.collection('machineModels').get();
+    res.json({ models: snapshot.docs.map(d => d.data()) });
+  } catch {
+    res.status(500).json({ error: 'Failed to fetch machine models' });
+  }
+};
+
+export const createMachineModel = async (req: AuthRequest, res: Response) => {
+  try {
+    const { name, category } = req.body;
+    if (!name || !category) {
+      res.status(400).json({ error: 'name and category are required' });
+      return;
+    }
+    const trimmedName = String(name).trim();
+    const trimmedCategory = String(category).trim();
+
+    // Prevent duplicates within the same category
+    const existing = await db.collection('machineModels')
+      .where('category', '==', trimmedCategory)
+      .where('name', '==', trimmedName)
+      .limit(1).get();
+    if (!existing.empty) {
+      res.status(400).json({ error: 'This model already exists in this category' });
+      return;
+    }
+
+    const id = uuidv4();
+    const model = {
+      id,
+      name: trimmedName,
+      category: trimmedCategory,
+      isActive: true,
+      createdAt: Timestamp.now(),
+    };
+    await db.collection('machineModels').doc(id).set(model);
+    res.status(201).json({ model });
+  } catch {
+    res.status(500).json({ error: 'Failed to create machine model' });
+  }
+};
+
+export const updateMachineModel = async (req: AuthRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+    const ref = db.collection('machineModels').doc(id);
+    const snap = await ref.get();
+    if (!snap.exists) {
+      res.status(404).json({ error: 'Model not found' });
+      return;
+    }
+    const updates: Record<string, unknown> = { updatedAt: Timestamp.now() };
+    if (typeof req.body.name === 'string') updates.name = req.body.name.trim();
+    if (typeof req.body.category === 'string') updates.category = req.body.category.trim();
+    if (typeof req.body.isActive === 'boolean') updates.isActive = req.body.isActive;
+    await ref.update(updates);
+    res.json({ message: 'Model updated' });
+  } catch {
+    res.status(500).json({ error: 'Failed to update model' });
+  }
+};
+
+export const deleteMachineModel = async (req: AuthRequest, res: Response) => {
+  try {
+    await db.collection('machineModels').doc(req.params.id).delete();
+    res.json({ message: 'Model deleted' });
+  } catch {
+    res.status(500).json({ error: 'Failed to delete model' });
   }
 };
 

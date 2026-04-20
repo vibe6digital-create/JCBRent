@@ -43,4 +43,12 @@ class BookingService {
     final response = await _api.get('/bookings/vendor/earnings');
     return response['earnings'] ?? response ?? {};
   }
+
+  /// Fetches city-level booking demand aggregated from the last [days] days.
+  /// Each point has shape `{lat, lng, city, count}`.
+  Future<List<Map<String, dynamic>>> getTrafficHeatmap({int days = 90}) async {
+    final response = await _api.get('/bookings/traffic-heatmap?days=$days');
+    final List raw = response['points'] ?? [];
+    return raw.map<Map<String, dynamic>>((p) => Map<String, dynamic>.from(p)).toList();
+  }
 }
