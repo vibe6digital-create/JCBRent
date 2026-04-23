@@ -2,6 +2,7 @@ import { Response } from 'express';
 import { db, Timestamp, messaging } from '../config/firebase';
 import { AuthRequest } from '../middleware/auth';
 import { v4 as uuidv4 } from 'uuid';
+import { MACHINE_SEED_DATA } from '../utils/machineSeeds';
 
 // ==================== DASHBOARD ====================
 export const getDashboard = async (_req: AuthRequest, res: Response) => {
@@ -518,6 +519,59 @@ export const resolveReport = async (req: AuthRequest, res: Response) => {
     res.json({ message: action === 'machine_rejected' ? 'Report resolved — machine rejected' : 'Report dismissed' });
   } catch {
     res.status(500).json({ error: 'Failed to resolve report' });
+  }
+};
+
+// ==================== SEED MACHINE MODELS ====================
+export const seedMachineModels = async (_req: AuthRequest, res: Response) => {
+  try {
+    const categories = Object.keys(MACHINE_SEED_DATA);
+    let categoriesAdded = 0;
+    let modelsAdded = 0;
+    let modelsSkipped = 0;
+
+    for (const categoryName of categories) {
+      // Upsert category
+      const catSnap = await db.collection('categories')
+        .where('name', '==', categoryName).limit(1).get();
+      if (catSnap.empty) {
+        const id = uuidv4();
+        await db.collection('categories').doc(id).set({
+          id, name: categoryName, isActive: true, createdAt: Timestamp.now(),
+        });
+        categoriesAdded++;
+      }
+
+      // Upsert models
+      const models = MACHINE_SEED_DATA[categoryName];
+      for (const modelName of models) {
+        const existing = await db.collection('machineModels')
+          .where('category', '==', categoryName)
+          .where('name', '==', modelName)
+          .limit(1).get();
+        if (existing.empty) {
+          const id = uuidv4();
+          await db.collection('machineModels').doc(id).set({
+            id, name: modelName, category: categoryName,
+            isActive: true, createdAt: Timestamp.now(),
+          });
+          modelsAdded++;
+        } else {
+          modelsSkipped++;
+        }
+      }
+    }
+
+    res.json({
+      message: 'Seed complete',
+      categoriesAdded,
+      modelsAdded,
+      modelsSkipped,
+      totalCategories: categories.length,
+    });
+  } catch (err) {
+    console.error('seedMachineModels:', err);
+    res.status(500).json({ error: 'Seed failed' });
   }
 };
 

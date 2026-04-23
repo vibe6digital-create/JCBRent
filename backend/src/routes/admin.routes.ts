@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { authenticate, authorize } from '../middleware/auth';
 import {
-  getDashboard, getAllUsers, toggleUserStatus, verifyVendor,
+  getDashboard, getAllUsers, toggleUserStatus, verifyVendor, seedMachineModels,
   getAllMachinesAdmin, approveMachine,
   getAllBookings,
   getCategories, createCategory, updateCategory,
@@ -56,5 +56,7 @@ router.get('/coupons', getCoupons);
 router.post('/coupons', createCoupon);
 router.patch('/coupons/:id', updateCoupon);
 router.delete('/coupons/:id', deleteCoupon);
+
+router.post('/seed-models', seedMachineModels);
 
 export default router;

@@ -1,8 +1,8 @@
 import { useState, useEffect, useMemo } from 'react';
-import { Plus, Edit2, ToggleLeft, ToggleRight, X, Check, Trash2 } from 'lucide-react';
+import { Plus, Edit2, ToggleLeft, ToggleRight, X, Check, Trash2, Download } from 'lucide-react';
 import {
   getMachineModels, createMachineModel, updateMachineModel, deleteMachineModel,
-  getCategories,
+  getCategories, seedMachineModels,
 } from '../../services/api';
 import type { MachineModel, Category } from '../../types';
 import toast from 'react-hot-toast';
@@ -16,6 +16,7 @@ export default function Models() {
   const [form, setForm] = useState({ name: '', category: '' });
   const [editForm, setEditForm] = useState({ name: '', category: '' });
   const [filterCategory, setFilterCategory] = useState<string>('all');
+  const [seeding, setSeeding] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -130,6 +131,34 @@ export default function Models() {
             <option value="all">All categories</option>
             {categories.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
           </select>
+          <button
+            onClick={async () => {
+              if (!window.confirm('This will seed all 500+ machine models from the pricing PDF into Firestore. Already-existing models will be skipped. Continue?')) return;
+              setSeeding(true);
+              try {
+                const res = await seedMachineModels();
+                toast.success(`Seeded! ${res.categoriesAdded} categories + ${res.modelsAdded} models added. ${res.modelsSkipped} already existed.`);
+                const [mRes, cRes]: any = await Promise.all([getMachineModels(), getCategories()]);
+                setModels(mRes.models || []);
+                setCategories((cRes.categories || []).filter((c: Category) => c.isActive));
+              } catch (err: any) {
+                toast.error(err.message || 'Seed failed');
+              } finally {
+                setSeeding(false);
+              }
+            }}
+            disabled={seeding}
+            style={{
+              display: 'flex', alignItems: 'center', gap: 8,
+              padding: '10px 18px', borderRadius: 8,
+              background: seeding ? '#D1D5DB' : '#009BA5',
+              color: '#fff', fontSize: 13, fontWeight: 700, border: 'none',
+              cursor: seeding ? 'not-allowed' : 'pointer',
+            }}
+          >
+            <Download size={16} strokeWidth={1.5} />
+            {seeding ? 'Seeding...' : 'Seed Models from PDF'}
+          </button>
           <button
             onClick={() => setShowAdd(true)}
             disabled={categories.length === 0}

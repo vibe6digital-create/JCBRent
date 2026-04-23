@@ -167,3 +167,6 @@ export const getReports = (status?: string) => {
 
 export const resolveReport = (id: string, action: 'dismissed' | 'machine_rejected') =>
   request(`/admin/reports/${id}`, { method: 'PATCH', body: JSON.stringify({ action }) });
+
+export const seedMachineModels = () =>
+  request<{ message: string; categoriesAdded: number; modelsAdded: number; modelsSkipped: number; totalCategories: number }>('/admin/seed-models', { method: 'POST' });
