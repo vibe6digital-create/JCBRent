@@ -679,77 +679,131 @@ class _DocumentUploader extends StatelessWidget {
   }
 }
 
-// ─── Legal text (placeholder — replace with legally reviewed copy before launch) ───
-
 const String _termsText = '''
-Last updated: April 2026
+RENTZOO VENDOR TERMS AND CONDITIONS
+Operated by: RentZoo Private Limited
 
-1. Acceptance of Terms
-By registering as a vendor on HeavyRent, you confirm that you have read, understood and agreed to be bound by these Terms of Use. If you do not agree, please do not use the platform.
+1. DEFINITIONS
 
-2. Eligibility
-You must be at least 18 years of age and legally permitted to operate heavy construction equipment in India. You must hold a valid driving licence for the class of vehicle you intend to list, and all documentation (RC, Fitness, Insurance) must be current and genuine.
+- "Customer" means any individual or business entity that books heavy vehicles/equipment through the Rentzoo platform.
+- "Vendor" means any individual or entity that lists and provides heavy vehicles/equipment (such as JCBs, cranes, tractors, excavators, etc.) on the Rentzoo platform.
+- "Service" means the rental of heavy vehicles/equipment provided by the Vendor to the Customer, inclusive of operator services unless otherwise specified.
+- "Booking Amount" means the total amount payable by the Customer for the Service booked through Rentzoo.
+- "Platform" means the Rentzoo mobile application, website, and associated digital interfaces.
 
-3. Listings & Bookings
-You are solely responsible for the accuracy of the information you provide about your machines, including specifications, pricing, availability and service areas. HeavyRent reserves the right to remove listings that are misleading, duplicate or non-compliant.
+2. SCOPE OF PLATFORM SERVICES
 
-4. Vendor Conduct
-You agree to honour confirmed bookings, arrive on time, operate the equipment safely and communicate professionally with customers. Repeated cancellations, no-shows or safety violations may result in suspension or termination of your account.
+- Technology Provider: Rentzoo operates strictly as a technology platform connecting Vendors with Customers. Rentzoo does not own, operate, or maintain any vehicles.
+- Facilitation: Rentzoo facilitates bookings, digital payments, and communication. We do not provide the rental service directly.
+- Account Maintenance: Vendors must maintain an active account and provide valid documentation, including RC, Insurance, Permits, and Operator KYC.
+- Verification: Vendor grants Rentzoo the right to conduct background checks. False information will result in immediate termination.
 
-5. Payments & Fees
-Customer payments flow through HeavyRent's payment partner. A platform fee is deducted from each completed booking as disclosed in the Vendor Earnings section. Payouts are made on the schedule described in the Earnings policy.
+3. VENDOR ELIGIBILITY & COMPLIANCE
 
-6. Location & Data
-You consent to share your device location during an active booking so that customers can track arrival. Location sharing stops automatically when the booking is completed or cancelled.
+- Legal Age: The Vendor must be at least 18 years of age.
+- Authorization: Vendor must possess legal ownership or explicit authorization to rent out the listed equipment.
+- Licensing: Vendor shall ensure all operators hold valid Heavy Motor Vehicle (HMV) or specialized equipment licenses as required by Indian law.
 
-7. Liability
-Heavy equipment operation carries inherent risk. HeavyRent is a marketplace and is not responsible for site-level safety, damage, injury or loss arising from the use of equipment listed on the platform. Vendors are expected to carry adequate insurance at all times.
+4. VENDOR OBLIGATIONS & CONDUCT
 
-8. Termination
-HeavyRent may suspend or terminate a vendor account at any time for breach of these Terms, suspected fraud, or regulatory reasons, with or without notice.
+- Reliability: Once a booking is accepted, the Vendor is committed. Cancellations are only permitted in verified emergencies.
+- Punctuality: Vendor must ensure the equipment reaches the site at the scheduled time.
+- Maintenance: Equipment must be in prime working condition, safe, and fuel-ready as per the booking terms.
+- Prohibited Conduct: Vendors and operators shall not engage in illegal activities or operate machinery under the influence of alcohol or intoxicants.
+- Sole Responsibility: The Vendor is exclusively responsible for the completion of the service and any misconduct by the operator.
 
-9. Governing Law
-These Terms are governed by the laws of India. Any disputes will be subject to the exclusive jurisdiction of the courts at the location of HeavyRent's registered office.
+5. PRICING, PAYMENTS & COMMISSION
 
-10. Changes
-HeavyRent may update these Terms from time to time. Continued use of the platform after an update constitutes acceptance of the revised Terms.
+- Price Finality: Vendors may set their own prices or follow Rentzoo's market-guided pricing. Once a booking is confirmed, the Vendor shall not demand extra payment beyond the agreed amount.
+- Commission: Rentzoo will deduct a pre-agreed commission from the Booking Amount for each successful transaction.
+- Payouts: Vendor payouts will be released within 24 hours after successful completion of the service, to the registered bank account.
 
-For questions, contact support@heavyrent.in
+6. STRICT NO-BYPASS POLICY
+
+- Exclusivity: Vendors shall not engage in direct transactions with Customers introduced via Rentzoo outside of the Platform.
+- Data Integrity: Sharing personal contact details to move a transaction "offline" is strictly prohibited.
+- Penalties: Violation of this policy will result in permanent account suspension and potential financial penalties equivalent to the estimated lost commission.
+
+7. CANCELLATION, DELAYS & PENALTIES
+
+Non-Performance: Vendor cancellation after booking acceptance, failure to show up or significant delays will result in:
+1. Financial penalties deducted from future payouts.
+2. Reduced platform visibility (Search Ranking).
+3. Account suspension for repeated offenses.
+
+8. LIABILITY & INSURANCE
+
+- Indemnification: Vendor shall indemnify and hold Rentzoo harmless against any claims, losses, or legal actions arising from the Vendor's service, negligence, or equipment failure.
+- Insurance: It is the Vendor's sole responsibility to maintain valid comprehensive insurance for the vehicle and third-party liability. Rentzoo is not liable for any damages, accidents, or fatalities at the site.
+
+9. SUBSCRIPTION & FEES
+
+- Zero Onboarding Fee: Currently, Rentzoo does not charge any upfront platform usage or subscription fees for Vendors to join or access the Platform. Any future changes to this fee structure will be communicated in advance.
+
+10. CONFIDENTIALITY & DATA
+
+- Privacy: Vendors shall keep all Customer data (location, contact, site details) confidential.
+- Communication: By registering, the Vendor consents to receive calls, SMS, and WhatsApp notifications from Rentzoo for operational purposes.
+
+11. RELATIONSHIP OF PARTIES
+
+- Independent Contractor: The relationship between Rentzoo and the Vendor is that of an independent contractor. Nothing in these Terms shall be construed to create a partnership, joint venture, or employer-employee relationship.
+
+12. COMMUNICATION & DATA CONSENT
+
+The Vendor agrees to receive calls, SMS, emails, and notifications from Rentzoo. The Vendor shall provide required KYC details and consents to the collection, storage, and use of their data by Rentzoo as per applicable laws.
+
+13. INDEMNIFICATION & LIABILITY
+
+The Vendor agrees to indemnify and hold Rentzoo harmless from any claims, losses, or damages arising from the Vendor's services, negligence, misconduct, or violation of these terms or applicable laws.
+
+14. FORCE MAJEURE
+
+Neither party shall be held liable for failure to perform obligations due to events beyond reasonable control, such as natural disasters, government lockdowns, or civil unrest.
+
+15. GOVERNING LAW & JURISDICTION
+
+These Terms are governed by the laws of India. Any disputes arising shall be subject to the exclusive jurisdiction of the courts in Hyderabad, Telangana.
+
+16. ACCEPTANCE OF TERMS
+
+By clicking "I Accept" during registration or by continuing to use the Rentzoo Platform, the Vendor acknowledges that they have read, understood, and agreed to be bound by these Terms and Conditions.
 ''';
 
 const String _privacyText = '''
-Last updated: April 2026
+RENTZOO PRIVACY POLICY
+Operated by: RentZoo Private Limited
 
 1. Information We Collect
-When you register as a vendor, we collect: your phone number (verified via OTP), full name or business name, email (optional), location (city/state and during-booking GPS), uploaded documents (licence, Aadhaar, signature, machine photos, RC, Fitness and Insurance certificates) and device identifiers needed to deliver push notifications.
+When you register as a vendor, we collect: your phone number (verified via OTP), full name or business name, email (optional), location (city/state and during-booking GPS), uploaded documents (Driving Licence, Aadhaar, signature, machine photos, RC, Fitness and Insurance certificates) and device identifiers needed to deliver push notifications.
 
 2. How We Use Your Information
 - To create and manage your vendor account.
 - To match you with customer booking requests in your service areas.
 - To verify your identity and the legitimacy of your listings.
 - To share your live location with a customer during an active booking so they can track arrival.
-- To send booking alerts, earnings statements and important service messages.
+- To send booking alerts, earnings statements, SMS, WhatsApp and important service messages.
 
 3. Sharing
-We share your name, vehicle details, rating and live location (during a booking) with the customer who has booked you. We do NOT sell your personal data. Authorised personnel of HeavyRent and our background-verification partner may access your KYC documents solely for verification.
+We share your name, vehicle details, rating and live location (during a booking) with the customer who has booked you. We do NOT sell your personal data. Authorised personnel of Rentzoo and our background-verification partner may access your KYC documents solely for verification.
 
 4. Storage & Security
 All data is stored on Google Firebase infrastructure, encrypted in transit (TLS) and at rest. Access is restricted by role-based permissions. We retain your data for the duration of your account and for such period thereafter as required by law.
 
 5. Your Rights
-You may request a copy of your data, ask us to correct inaccurate information, or request deletion of your account by writing to privacy@heavyrent.in. Some data may be retained for tax, legal or fraud-prevention purposes even after account deletion.
+You may request a copy of your data, ask us to correct inaccurate information, or request deletion of your account by writing to support@rentzoo.in. Some data may be retained for tax, legal or fraud-prevention purposes even after account deletion.
 
 6. Location Data
-Location is captured only when the app is in active use for a booking. You can disable location permission from device settings, but this will prevent you from receiving booking assignments that require live tracking.
+Location is captured only when the app is in active use for a booking. You can disable location permission from device settings, but this will prevent customers from tracking your arrival.
 
-7. Cookies & Analytics
-The HeavyRent apps use Firebase Analytics and Crashlytics to understand usage patterns and diagnose crashes. These tools do not collect personally identifying information.
+7. Analytics
+The Rentzoo apps use Firebase Analytics and Crashlytics to understand usage patterns and diagnose crashes. These tools do not collect personally identifying information.
 
 8. Children
-HeavyRent is not intended for anyone under 18. We do not knowingly collect data from minors.
+Rentzoo is not intended for anyone under 18. We do not knowingly collect data from minors.
 
 9. Changes
 We may update this Privacy Policy from time to time. Material changes will be notified in-app.
 
-Contact: privacy@heavyrent.in
+Contact: support@rentzoo.in
 ''';
