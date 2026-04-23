@@ -32,9 +32,9 @@ class StorageService {
   static Future<void> saveUserProfile({
     required String name,
     required String phone,
-    required String email,
-    required String city,
-    required String state,
+    String email = '',
+    String city = '',
+    String state = '',
   }) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_nameKey, name);

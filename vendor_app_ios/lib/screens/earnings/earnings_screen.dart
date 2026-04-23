@@ -35,6 +35,29 @@ class _EarningsScreenState extends State<EarningsScreen> {
   List<Booking> _completedBookings = [];
   bool _isLoading = true;
 
+  double get _totalEarnings => _completedBookings.fold(0, (s, b) => s + b.estimatedCost);
+
+  double get _todayEarnings {
+    final now = DateTime.now();
+    return _completedBookings
+        .where((b) => b.endDate.year == now.year && b.endDate.month == now.month && b.endDate.day == now.day)
+        .fold(0, (s, b) => s + b.estimatedCost);
+  }
+
+  double get _weekEarnings {
+    final cutoff = DateTime.now().subtract(const Duration(days: 7));
+    return _completedBookings
+        .where((b) => b.endDate.isAfter(cutoff))
+        .fold(0, (s, b) => s + b.estimatedCost);
+  }
+
+  double get _monthEarnings {
+    final now = DateTime.now();
+    return _completedBookings
+        .where((b) => b.endDate.year == now.year && b.endDate.month == now.month)
+        .fold(0, (s, b) => s + b.estimatedCost);
+  }
+
   @override
   void initState() {
     super.initState();
@@ -42,12 +65,16 @@ class _EarningsScreenState extends State<EarningsScreen> {
   }
 
   Future<void> _loadData() async {
-    final all = await _service.getVendorBookings();
-    if (mounted) {
-      setState(() {
-        _completedBookings = all.where((b) => b.isCompleted).toList();
-        _isLoading = false;
-      });
+    try {
+      final all = await _service.getVendorBookings();
+      if (mounted) {
+        setState(() {
+          _completedBookings = all.where((b) => b.isCompleted).toList();
+          _isLoading = false;
+        });
+      }
+    } catch (_) {
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
@@ -93,7 +120,7 @@ class _EarningsScreenState extends State<EarningsScreen> {
                       ],
                     ),
                     const SizedBox(height: 12),
-                    Text(_fmtCurrency(_service.totalEarnings),
+                    Text(_fmtCurrency(_totalEarnings),
                       style: const TextStyle(fontSize: 38, fontWeight: FontWeight.w800, color: Colors.white, letterSpacing: -1)),
                     const SizedBox(height: 4),
                     Text('${_completedBookings.length} bookings completed',
@@ -106,11 +133,11 @@ class _EarningsScreenState extends State<EarningsScreen> {
               // Period cards
               Row(
                 children: [
-                  Expanded(child: _PeriodCard(label: 'Today', amount: _service.todayEarnings, icon: Icons.today_rounded, color: AppTheme.successColor)),
+                  Expanded(child: _PeriodCard(label: 'Today', amount: _todayEarnings, icon: Icons.today_rounded, color: AppTheme.successColor)),
                   const SizedBox(width: 10),
-                  Expanded(child: _PeriodCard(label: 'This Week', amount: _service.weekEarnings, icon: Icons.date_range_rounded, color: AppTheme.infoColor)),
+                  Expanded(child: _PeriodCard(label: 'This Week', amount: _weekEarnings, icon: Icons.date_range_rounded, color: AppTheme.infoColor)),
                   const SizedBox(width: 10),
-                  Expanded(child: _PeriodCard(label: 'Month', amount: _service.monthEarnings, icon: Icons.calendar_month_rounded, color: AppTheme.warningColor)),
+                  Expanded(child: _PeriodCard(label: 'Month', amount: _monthEarnings, icon: Icons.calendar_month_rounded, color: AppTheme.warningColor)),
                 ],
               ),
               const SizedBox(height: 28),

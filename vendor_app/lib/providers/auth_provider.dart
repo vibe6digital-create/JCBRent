@@ -12,18 +12,26 @@ class AuthProvider extends ChangeNotifier {
   bool get isAuthenticated => _isAuthenticated;
   Map<String, dynamic>? get userProfile => _userProfile;
 
-  Future<void> sendOTP(String phoneNumber) async {
+  Future<void> sendOTP(
+    String phoneNumber, {
+    required void Function(String verificationId) onCodeSent,
+    required void Function(String error) onFailed,
+  }) async {
     _isLoading = true;
     notifyListeners();
-    await _authService.sendOTP(phoneNumber);
+    await _authService.verifyPhone(
+      phoneNumber: phoneNumber,
+      onCodeSent: onCodeSent,
+      onFailed: onFailed,
+    );
     _isLoading = false;
     notifyListeners();
   }
 
-  Future<void> verifyOTP(String otp) async {
+  Future<void> verifyOTP(String verificationId, String otp) async {
     _isLoading = true;
     notifyListeners();
-    await _authService.verifyOTP(otp);
+    await _authService.verifyOTP(verificationId, otp);
     _isAuthenticated = true;
     _isLoading = false;
     notifyListeners();

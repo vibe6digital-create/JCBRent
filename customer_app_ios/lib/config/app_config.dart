@@ -6,4 +6,5 @@ class AppConfig {
 
   static const String firebaseProjectId = 'rentzoo-a39ea';
   static const String firebaseStorageBucket = 'rentzoo-a39ea.firebasestorage.app';
+  static const String googleMapsApiKey = 'AIzaSyAJ-cep-pgl0iO2qcZ_UlZ35xBDac6DjUY';
 }

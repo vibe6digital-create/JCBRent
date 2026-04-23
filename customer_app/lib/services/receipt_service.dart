@@ -301,7 +301,7 @@ class ReceiptService {
   }) {
     const headerStyle = pw.TextStyle(fontSize: 9, color: PdfColors.grey500);
     const rowStyle = pw.TextStyle(fontSize: 12, color: PdfColors.grey800);
-    const boldStyle = pw.TextStyle(fontSize: 13, fontWeight: pw.FontWeight.bold);
+    final boldStyle = pw.TextStyle(fontSize: 13, fontWeight: pw.FontWeight.bold);
 
     return pw.Container(
       decoration: pw.BoxDecoration(
