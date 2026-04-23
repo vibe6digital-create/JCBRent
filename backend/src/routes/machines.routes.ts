@@ -4,7 +4,7 @@ import { upload } from '../middleware/upload';
 import { db } from '../config/firebase';
 import {
   createMachine, getMachines, getMachineById,
-  updateMachine, deleteMachine, getVendorMachines, toggleAvailability
+  updateMachine, deleteMachine, getVendorMachines, toggleAvailability, getMachineReviews, reportMachine
 } from '../controllers/machines.controller';
 import { getCategories, getServiceAreas } from '../controllers/admin.controller';
 import { findNearestCity } from '../utils/cityCentroids';
@@ -57,5 +57,7 @@ router.delete('/:id', authenticate, authorize('vendor', 'admin'), deleteMachine)
 router.patch('/:id/availability', authenticate, authorize('vendor'), toggleAvailability);
 
 router.get('/:id', getMachineById);
+router.get('/:id/reviews', getMachineReviews);
+router.post('/:id/report', authenticate, reportMachine);
 
 export default router;

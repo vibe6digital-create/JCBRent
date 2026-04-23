@@ -49,6 +49,9 @@ export const searchMachines = (params: { city?: string; category?: string; sortB
 export const getMachineById = (id: string) =>
   request(`/machines/${id}`, {}, false);
 
+export const getMachineReviews = (id: string) =>
+  request(`/machines/${id}/reviews`, {}, false);
+
 export const getCategories = () =>
   request('/machines/meta/categories', {}, false);
 
@@ -68,6 +71,7 @@ export const createMachine = (body: {
   dailyRate: number;
   weeklyRate?: number;
   monthlyRate?: number;
+  machineYear?: number;
   location: { city: string; state: string; latitude: number; longitude: number };
   serviceAreas: string[];
   isAvailable?: boolean;
@@ -81,6 +85,7 @@ export const updateMachine = (id: string, body: Partial<{
   dailyRate: number;
   weeklyRate: number;
   monthlyRate: number;
+  machineYear: number;
   serviceAreas: string[];
   isAvailable: boolean;
 }>) => request(`/machines/${id}`, { method: 'PUT', body: JSON.stringify(body) });

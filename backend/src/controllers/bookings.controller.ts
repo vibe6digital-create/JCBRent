@@ -576,6 +576,25 @@ export const rateBooking = async (req: AuthRequest, res: Response) => {
 
     await bookingRef.update({ rating, review: review || '', updatedAt: Timestamp.now() });
 
+    // Aggregate machine rating stats
+    try {
+      const allRatedSnap = await db.collection('bookings')
+        .where('machineId', '==', booking.machineId)
+        .where('status', '==', 'completed')
+        .get();
+      const rated = allRatedSnap.docs.map(d => d.data()).filter(b => b.rating > 0);
+      if (rated.length > 0) {
+        const avg = Math.round((rated.reduce((s, b) => s + b.rating, 0) / rated.length) * 10) / 10;
+        await db.collection('machines').doc(booking.machineId).update({
+          avgRating: avg,
+          reviewCount: rated.length,
+          updatedAt: Timestamp.now(),
+        });
+      }
+    } catch (e) {
+      console.warn('[rating] machine aggregate update failed:', e);
+    }
+
     // Notify vendor
     const ratingTitle = 'New Rating Received!';
     const ratingBody = `${booking.customerName} rated your ${booking.machineCategory} ${rating}/5 stars.`;

@@ -1,10 +1,79 @@
 import { useState, useEffect } from 'react';
-import { Search, Calendar, MapPin, IndianRupee, X, Phone, User, Truck, FileText, AlertCircle, Printer } from 'lucide-react';
+import { Search, Calendar, MapPin, IndianRupee, X, Phone, User, Truck, FileText, AlertCircle, Printer, Download } from 'lucide-react';
 import Badge from '../../components/common/Badge';
 import { getBookings, adminCancelBooking } from '../../services/api';
 import { printReceipt } from '../../utils/printReceipt';
 import type { Booking, BookingStatus } from '../../types';
 import toast from 'react-hot-toast';
+
+// ─── CSV Export ───────────────────────────────────────────────────────────────
+
+function esc(v: unknown): string {
+  const s = v == null ? '' : String(v);
+  // Wrap in quotes if the value contains comma, quote, or newline
+  if (s.includes(',') || s.includes('"') || s.includes('\n')) {
+    return `"${s.replace(/"/g, '""')}"`;
+  }
+  return s;
+}
+
+function fmtDateStr(val: any): string {
+  if (!val) return '';
+  if (typeof val === 'string') {
+    try { return new Date(val).toLocaleDateString('en-IN'); } catch { return val; }
+  }
+  if (typeof val === 'object' && val._seconds) {
+    return new Date(val._seconds * 1000).toLocaleDateString('en-IN');
+  }
+  return '';
+}
+
+function exportBookingsCSV(rows: Booking[], label: string) {
+  const headers = [
+    'Booking ID', 'Status', 'Booking Type',
+    'Customer Name', 'Customer Phone',
+    'Vendor Name',
+    'Machine Category', 'Machine Model',
+    'Start Date', 'End Date', 'Rate Type', 'Rate (₹)',
+    'Estimated Cost (₹)', 'Coupon Code', 'Discount (₹)',
+    'Work City', 'Work Address',
+    'Rating', 'Cancellation Reason', 'Cancelled By',
+    'Created At',
+  ];
+
+  const csvRows = rows.map(b => [
+    b.id,
+    b.status,
+    b.bookingType ?? '',
+    b.customerName,
+    b.customerPhone,
+    b.vendorName,
+    b.machineCategory,
+    b.machineModel,
+    fmtDateStr(b.startDate),
+    fmtDateStr(b.endDate),
+    b.rateType,
+    b.rate ?? '',
+    b.estimatedCost,
+    b.couponCode ?? '',
+    b.discountAmount ?? '',
+    (b.workLocation as any)?.city ?? '',
+    (b.workLocation as any)?.address ?? '',
+    (b as any).rating ?? '',
+    b.cancellationReason ?? '',
+    b.cancelledBy ?? '',
+    fmtDateStr(b.createdAt),
+  ].map(esc).join(','));
+
+  const csv = [headers.map(esc).join(','), ...csvRows].join('\r\n');
+  const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `bookings_${label}_${new Date().toISOString().slice(0, 10)}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
 
 function formatDate(val: any): string {
   if (!val) return '—';
@@ -319,6 +388,9 @@ export default function Bookings() {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<FilterStatus>('all');
   const [selected, setSelected] = useState<Booking | null>(null);
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
+  const [exporting, setExporting] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -340,8 +412,38 @@ export default function Bookings() {
       getCity(b.workLocation).toLowerCase().includes(search.toLowerCase()) ||
       (b.vendorName || '').toLowerCase().includes(search.toLowerCase());
     const matchesStatus = statusFilter === 'all' || b.status === statusFilter;
-    return matchesSearch && matchesStatus;
+
+    let matchesDate = true;
+    if (dateFrom || dateTo) {
+      const bDate = (() => {
+        const v = b.startDate as any;
+        if (!v) return null;
+        if (typeof v === 'string') return new Date(v);
+        if (v._seconds) return new Date(v._seconds * 1000);
+        return null;
+      })();
+      if (bDate) {
+        if (dateFrom && bDate < new Date(dateFrom)) matchesDate = false;
+        if (dateTo && bDate > new Date(dateTo + 'T23:59:59')) matchesDate = false;
+      }
+    }
+
+    return matchesSearch && matchesStatus && matchesDate;
   });
+
+  const handleExport = () => {
+    if (filtered.length === 0) { toast.error('No bookings to export'); return; }
+    setExporting(true);
+    try {
+      const label = statusFilter === 'all' ? 'all' : statusFilter;
+      exportBookingsCSV(filtered, label);
+      toast.success(`Exported ${filtered.length} bookings`);
+    } catch {
+      toast.error('Export failed');
+    } finally {
+      setExporting(false);
+    }
+  };
 
   const counts: Record<string, number> = {
     all: bookings.length,
@@ -376,16 +478,46 @@ export default function Bookings() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
       {/* Filters */}
-      <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #E5E7EB', padding: 16, display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: '#F5F5F5', borderRadius: 8, padding: '8px 12px', border: '1px solid #E5E7EB', flex: 1, minWidth: 200 }}>
-          <Search size={14} color="#9CA3AF" strokeWidth={1.5} />
-          <input
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            placeholder="Search by customer, machine, vendor or city..."
-            style={{ border: 'none', background: 'none', fontSize: 13, color: '#1A1D26', width: '100%' }}
-          />
+      <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #E5E7EB', padding: 16, display: 'flex', flexDirection: 'column', gap: 12 }}>
+        {/* Row 1: search + date range */}
+        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: '#F5F5F5', borderRadius: 8, padding: '8px 12px', border: '1px solid #E5E7EB', flex: 1, minWidth: 200 }}>
+            <Search size={14} color="#9CA3AF" strokeWidth={1.5} />
+            <input
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              placeholder="Search by customer, machine, vendor or city..."
+              style={{ border: 'none', background: 'none', fontSize: 13, color: '#1A1D26', width: '100%' }}
+            />
+          </div>
+          {/* Date range */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
+            <span style={{ fontSize: 12, color: '#9CA3AF', whiteSpace: 'nowrap' }}>Start date</span>
+            <input
+              type="date"
+              value={dateFrom}
+              onChange={e => setDateFrom(e.target.value)}
+              style={{ fontSize: 12, padding: '6px 10px', borderRadius: 8, border: '1px solid #E5E7EB', color: '#1A1D26', background: '#FAFAFA', cursor: 'pointer' }}
+            />
+            <span style={{ fontSize: 12, color: '#9CA3AF' }}>→</span>
+            <input
+              type="date"
+              value={dateTo}
+              onChange={e => setDateTo(e.target.value)}
+              min={dateFrom}
+              style={{ fontSize: 12, padding: '6px 10px', borderRadius: 8, border: '1px solid #E5E7EB', color: '#1A1D26', background: '#FAFAFA', cursor: 'pointer' }}
+            />
+            {(dateFrom || dateTo) && (
+              <button
+                onClick={() => { setDateFrom(''); setDateTo(''); }}
+                style={{ fontSize: 11, padding: '5px 10px', borderRadius: 6, border: '1px solid #E5E7EB', background: '#fff', color: '#6B7280', cursor: 'pointer', whiteSpace: 'nowrap' }}
+              >
+                Clear
+              </button>
+            )}
+          </div>
         </div>
+        {/* Row 2: status tabs */}
         <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
           {filterTabs.map(tab => (
             <button
@@ -412,8 +544,42 @@ export default function Bookings() {
 
       {/* Table */}
       <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #E5E7EB', overflow: 'hidden' }}>
-        <div style={{ padding: '16px 24px', borderBottom: '1px solid #E5E7EB' }}>
-          <span style={{ fontSize: 14, fontWeight: 700, color: '#1A1D26' }}>{filtered.length} bookings found</span>
+        <div style={{ padding: '16px 24px', borderBottom: '1px solid #E5E7EB', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div>
+            <span style={{ fontSize: 14, fontWeight: 700, color: '#1A1D26' }}>{filtered.length} bookings found</span>
+            {(dateFrom || dateTo) && (
+              <span style={{ fontSize: 12, color: '#9CA3AF', marginLeft: 10 }}>
+                {dateFrom && `from ${new Date(dateFrom).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}`}
+                {dateTo && ` to ${new Date(dateTo).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}`}
+              </span>
+            )}
+          </div>
+          <button
+            onClick={handleExport}
+            disabled={exporting || filtered.length === 0}
+            title={filtered.length === 0 ? 'No bookings to export' : `Export ${filtered.length} bookings as CSV`}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 6,
+              padding: '7px 16px',
+              borderRadius: 8,
+              border: '1px solid',
+              borderColor: filtered.length === 0 ? '#E5E7EB' : '#16A34A',
+              background: filtered.length === 0 ? '#F9FAFB' : '#F0FDF4',
+              color: filtered.length === 0 ? '#9CA3AF' : '#15803D',
+              fontSize: 13,
+              fontWeight: 600,
+              cursor: filtered.length === 0 ? 'not-allowed' : 'pointer',
+              transition: 'all 0.15s',
+              whiteSpace: 'nowrap',
+            }}
+            onMouseEnter={e => { if (filtered.length > 0) (e.currentTarget as HTMLElement).style.background = '#DCFCE7'; }}
+            onMouseLeave={e => { if (filtered.length > 0) (e.currentTarget as HTMLElement).style.background = '#F0FDF4'; }}
+          >
+            <Download size={14} strokeWidth={1.5} />
+            {exporting ? 'Exporting…' : `Export CSV (${filtered.length})`}
+          </button>
         </div>
         <div style={{ overflowX: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>

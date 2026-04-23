@@ -42,6 +42,17 @@ export interface Machine {
   serviceAreas: string[];
   isAvailable: boolean;
   approvalStatus: ApprovalStatus;
+  machineYear?: number;
+  avgRating?: number;
+  reviewCount?: number;
+  createdAt: string;
+}
+
+export interface Review {
+  id: string;
+  customerName: string;
+  rating: number;
+  review: string;
   createdAt: string;
 }
 

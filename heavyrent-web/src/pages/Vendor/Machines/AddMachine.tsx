@@ -50,7 +50,7 @@ export default function AddMachine() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [form, setForm] = useState({
     category: '' as MachineCategory | '',
-    model: '', description: '', hourlyRate: '', dailyRate: '', weeklyRate: '', monthlyRate: '',
+    model: '', description: '', machineYear: '', hourlyRate: '', dailyRate: '', weeklyRate: '', monthlyRate: '',
     city: '', state: '', serviceAreas: '', isAvailable: true,
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -121,6 +121,7 @@ export default function AddMachine() {
         dailyRate: Number(form.dailyRate),
         weeklyRate: form.weeklyRate ? Number(form.weeklyRate) : undefined,
         monthlyRate: form.monthlyRate ? Number(form.monthlyRate) : undefined,
+        machineYear: form.machineYear ? Number(form.machineYear) : undefined,
         location: { city: form.city.trim(), state: form.state.trim(), latitude: 0, longitude: 0 },
         serviceAreas: form.serviceAreas.split(',').map(s => s.trim()).filter(Boolean),
         isAvailable: form.isAvailable,
@@ -149,7 +150,7 @@ export default function AddMachine() {
         <button onClick={() => navigate('/vendor/machines')} style={{ padding: '12px 28px', borderRadius: 10, background: '#FF8C00', color: '#fff', fontWeight: 700, fontSize: 14, border: 'none', cursor: 'pointer' }}>
           View My Machines
         </button>
-        <button onClick={() => { setSaved(false); setImageUrls([]); setForm({ category: '', model: '', description: '', hourlyRate: '', dailyRate: '', weeklyRate: '', monthlyRate: '', city: '', state: '', serviceAreas: '', isAvailable: true }); }}
+        <button onClick={() => { setSaved(false); setImageUrls([]); setForm({ category: '', model: '', description: '', machineYear: '', hourlyRate: '', dailyRate: '', weeklyRate: '', monthlyRate: '', city: '', state: '', serviceAreas: '', isAvailable: true }); }}
           style={{ padding: '12px 28px', borderRadius: 10, background: '#fff', color: '#6B7280', fontWeight: 700, fontSize: 14, border: '1px solid #E5E7EB', cursor: 'pointer' }}>
           Add Another
         </button>
@@ -230,6 +231,7 @@ export default function AddMachine() {
           <div style={{ background: '#fff', borderRadius: 14, border: '1px solid #E5E7EB', padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: 16 }}>
             <h3 style={{ fontSize: 15, fontWeight: 700, color: '#1A1D26' }}>Machine Details</h3>
             <Field label="Model Name *" field="model" placeholder="e.g. JCB 3DX Plus" form={formAsRecord} errors={errors} set={set} />
+            <Field label="Year of Manufacture" field="machineYear" type="number" placeholder={`e.g. ${new Date().getFullYear() - 2}`} form={formAsRecord} errors={errors} set={set} />
             <div>
               <label style={{ display: 'block', fontSize: 13, fontWeight: 700, color: '#374151', marginBottom: 6 }}>Description</label>
               <textarea value={form.description} onChange={e => set('description', e.target.value)}
@@ -293,6 +295,7 @@ export default function AddMachine() {
               ...(form.weeklyRate ? [{ label: 'Weekly', value: `₹${Number(form.weeklyRate).toLocaleString('en-IN')}/wk` }] : []),
               ...(form.monthlyRate ? [{ label: 'Monthly', value: `₹${Number(form.monthlyRate).toLocaleString('en-IN')}/mo` }] : []),
               { label: 'Location', value: form.city || '—' },
+              ...(form.machineYear ? [{ label: 'Year', value: String(form.machineYear) }] : []),
             ].map(r => (
               <div key={r.label} style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
                 <span style={{ color: '#6B7280', fontSize: 12 }}>{r.label}</span>

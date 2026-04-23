@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { Search, SlidersHorizontal, MapPin, Clock, IndianRupee, ChevronRight, X } from 'lucide-react';
+import { Search, SlidersHorizontal, MapPin, Clock, IndianRupee, ChevronRight, X, SlidersHorizontal as FilterIcon } from 'lucide-react';
 import { searchMachines } from '../../../services/api';
 import type { Machine, MachineCategory } from '../../../types';
 import Badge from '../../../components/common/Badge';
@@ -18,9 +18,16 @@ export default function CustomerSearch() {
   const [category, setCategory] = useState<MachineCategory | 'All'>((params.get('category') as MachineCategory) || 'All');
   const [sort, setSort] = useState<'price_asc' | 'price_desc'>('price_asc');
 
+  const [minPrice, setMinPrice] = useState('');
+  const [maxPrice, setMaxPrice] = useState('');
+  const [showPriceFilter, setShowPriceFilter] = useState(false);
+
   const [allMachines, setAllMachines] = useState<Machine[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+
+  const hasPriceFilter = minPrice !== '' || maxPrice !== '';
+  const clearPriceFilter = () => { setMinPrice(''); setMaxPrice(''); };
 
   useEffect(() => {
     setLoading(true);
@@ -45,9 +52,13 @@ export default function CustomerSearch() {
       );
     }
     if (category !== 'All') list = list.filter(m => m.category === category);
+    const min = minPrice !== '' ? parseFloat(minPrice) : null;
+    const max = maxPrice !== '' ? parseFloat(maxPrice) : null;
+    if (min !== null) list = list.filter(m => m.dailyRate >= min);
+    if (max !== null) list = list.filter(m => m.dailyRate <= max);
     list.sort((a, b) => sort === 'price_asc' ? a.dailyRate - b.dailyRate : b.dailyRate - a.dailyRate);
     return list;
-  }, [allMachines, search, category, sort]);
+  }, [allMachines, search, category, sort, minPrice, maxPrice]);
 
   if (loading) return <div style={{ textAlign: 'center', padding: 40 }}>Loading...</div>;
   if (error) return <div style={{ textAlign: 'center', padding: 40, color: '#E53935' }}>{error}</div>;
@@ -63,6 +74,26 @@ export default function CustomerSearch() {
           {search && <button onClick={() => setSearch('')} style={{ background: 'none', border: 'none', color: '#9CA3AF', cursor: 'pointer', display: 'flex' }}><X size={13} strokeWidth={2} /></button>}
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          {/* Price Filter toggle button */}
+          <button
+            onClick={() => setShowPriceFilter(p => !p)}
+            style={{
+              display: 'flex', alignItems: 'center', gap: 6,
+              padding: '8px 14px', borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: 'pointer',
+              border: `1.5px solid ${hasPriceFilter ? '#FF8C00' : '#E5E7EB'}`,
+              background: hasPriceFilter ? '#FFF3E0' : '#fff',
+              color: hasPriceFilter ? '#E07B00' : '#6B7280',
+              transition: 'all 0.15s',
+            }}
+          >
+            <FilterIcon size={14} strokeWidth={1.5} />
+            Price
+            {hasPriceFilter && (
+              <span style={{ background: '#FF8C00', color: '#fff', borderRadius: 20, fontSize: 11, fontWeight: 700, padding: '1px 6px' }}>
+                {minPrice && maxPrice ? `₹${minPrice}–₹${maxPrice}` : minPrice ? `≥₹${minPrice}` : `≤₹${maxPrice}`}
+              </span>
+            )}
+          </button>
           <SlidersHorizontal size={14} color="#9CA3AF" strokeWidth={1.5} />
           <select value={sort} onChange={e => setSort(e.target.value as typeof sort)}
             style={{ padding: '8px 12px', border: '1px solid #E5E7EB', borderRadius: 8, fontSize: 13, color: '#1A1D26', background: '#fff', cursor: 'pointer' }}>
@@ -71,6 +102,59 @@ export default function CustomerSearch() {
           </select>
         </div>
       </div>
+
+      {/* Price Range Filter Panel */}
+      {showPriceFilter && (
+        <div style={{ background: '#fff', borderRadius: 12, border: '1.5px solid #FF8C00', padding: '16px 20px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <IndianRupee size={15} color="#FF8C00" strokeWidth={1.5} />
+              <span style={{ fontSize: 14, fontWeight: 700, color: '#1A1D26' }}>Daily Rate Range</span>
+            </div>
+            {hasPriceFilter && (
+              <button onClick={clearPriceFilter} style={{ display: 'flex', alignItems: 'center', gap: 4, background: 'none', border: 'none', color: '#E53935', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
+                <X size={12} strokeWidth={2.5} /> Clear
+              </button>
+            )}
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <div style={{ flex: 1 }}>
+              <label style={{ fontSize: 11, fontWeight: 700, color: '#9CA3AF', textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: 6 }}>Min Price (₹/day)</label>
+              <div style={{ display: 'flex', alignItems: 'center', background: '#F9FAFB', border: '1.5px solid #E5E7EB', borderRadius: 8, padding: '8px 12px', gap: 6 }}>
+                <span style={{ color: '#9CA3AF', fontSize: 14, fontWeight: 600 }}>₹</span>
+                <input
+                  type="number" min="0" value={minPrice}
+                  onChange={e => setMinPrice(e.target.value)}
+                  placeholder="e.g. 5000"
+                  style={{ flex: 1, border: 'none', background: 'none', fontSize: 14, color: '#1A1D26', outline: 'none' }}
+                />
+              </div>
+            </div>
+            <div style={{ color: '#9CA3AF', fontSize: 18, fontWeight: 300, paddingTop: 22 }}>—</div>
+            <div style={{ flex: 1 }}>
+              <label style={{ fontSize: 11, fontWeight: 700, color: '#9CA3AF', textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: 6 }}>Max Price (₹/day)</label>
+              <div style={{ display: 'flex', alignItems: 'center', background: '#F9FAFB', border: '1.5px solid #E5E7EB', borderRadius: 8, padding: '8px 12px', gap: 6 }}>
+                <span style={{ color: '#9CA3AF', fontSize: 14, fontWeight: 600 }}>₹</span>
+                <input
+                  type="number" min="0" value={maxPrice}
+                  onChange={e => setMaxPrice(e.target.value)}
+                  placeholder="e.g. 30000"
+                  style={{ flex: 1, border: 'none', background: 'none', fontSize: 14, color: '#1A1D26', outline: 'none' }}
+                />
+              </div>
+            </div>
+          </div>
+          {hasPriceFilter && (
+            <p style={{ marginTop: 10, fontSize: 12, color: '#9CA3AF' }}>
+              Showing machines with daily rate
+              {minPrice && ` ≥ ₹${Number(minPrice).toLocaleString('en-IN')}`}
+              {minPrice && maxPrice && ' and'}
+              {maxPrice && ` ≤ ₹${Number(maxPrice).toLocaleString('en-IN')}`}
+              {' '}— <strong style={{ color: '#1A1D26' }}>{filtered.length} result{filtered.length !== 1 ? 's' : ''}</strong>
+            </p>
+          )}
+        </div>
+      )}
 
       {/* Category Chips */}
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
@@ -175,9 +259,14 @@ export default function CustomerSearch() {
         <div style={{ background: '#fff', borderRadius: 14, padding: 48, textAlign: 'center', border: '1px solid #E5E7EB' }}>
           <div style={{ fontSize: 48, marginBottom: 12 }}>🔍</div>
           <h3 style={{ fontSize: 16, fontWeight: 700, color: '#1A1D26', marginBottom: 6 }}>No machines found</h3>
-          <p style={{ color: '#9CA3AF', fontSize: 14 }}>Try a different city or category</p>
-          <button onClick={() => { setSearch(''); setCategory('All'); }} style={{ marginTop: 16, padding: '8px 20px', borderRadius: 8, background: '#FF8C00', color: '#fff', fontWeight: 700, fontSize: 13, border: 'none', cursor: 'pointer' }}>
-            Clear Filters
+          <p style={{ color: '#9CA3AF', fontSize: 14 }}>
+            {hasPriceFilter ? 'No machines match the price range. Try widening it.' : 'Try a different city or category'}
+          </p>
+          <button
+            onClick={() => { setSearch(''); setCategory('All'); clearPriceFilter(); setShowPriceFilter(false); }}
+            style={{ marginTop: 16, padding: '8px 20px', borderRadius: 8, background: '#FF8C00', color: '#fff', fontWeight: 700, fontSize: 13, border: 'none', cursor: 'pointer' }}
+          >
+            Clear All Filters
           </button>
         </div>
       )}

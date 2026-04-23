@@ -9,14 +9,19 @@ const PAGE_TITLES: Record<string, string> = {
   '/machines': 'Machines',
   '/bookings': 'Bookings',
   '/estimates': 'Estimates',
+  '/notifications': 'Notifications',
   '/categories': 'Categories',
   '/service-areas': 'Service Areas',
+  '/coupons': 'Coupons',
+  '/analytics': 'Analytics',
+  '/reported-machines': 'Reported Machines',
 };
 
 export default function Layout() {
   const [collapsed, setCollapsed] = useState(false);
   const location = useLocation();
-  const title = PAGE_TITLES[location.pathname] || 'HeavyRent Admin';
+  const title = PAGE_TITLES[location.pathname] ||
+    (location.pathname.startsWith('/vendor-earnings/') ? 'Vendor Earnings' : 'HeavyRent Admin');
   const sidebarWidth = collapsed ? 64 : 240;
 
   return (

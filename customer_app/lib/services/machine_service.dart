@@ -41,4 +41,14 @@ class MachineService {
         .map<String>((a) => a['city'] as String)
         .toList();
   }
+
+  Future<void> reportMachine(String machineId, {
+    required String reason,
+    String details = '',
+  }) async {
+    await _api.post('/machines/$machineId/report', body: {
+      'reason': reason,
+      'details': details,
+    });
+  }
 }

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../config/theme.dart';
 import '../../models/machine.dart';
+import '../../services/machine_service.dart';
 import '../booking/create_booking_screen.dart';
 import '../estimate/estimate_screen.dart';
 
@@ -15,6 +16,136 @@ class MachineDetailScreen extends StatefulWidget {
 
 class _MachineDetailScreenState extends State<MachineDetailScreen> {
   int _currentImageIndex = 0;
+  final _machineService = MachineService();
+
+  void _showReportSheet() {
+    const reasons = [
+      ('misleading_info', 'Misleading Information'),
+      ('safety_concern',  'Safety Concern'),
+      ('unavailable',     'Machine Unavailable'),
+      ('overpricing',     'Overpricing'),
+      ('other',           'Other'),
+    ];
+    String? selectedReason;
+    final detailsController = TextEditingController();
+    bool submitting = false;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setSheetState) => Padding(
+          padding: EdgeInsets.only(
+            left: 20, right: 20, top: 20,
+            bottom: MediaQuery.of(ctx).viewInsets.bottom + 24,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(
+                child: Container(
+                  width: 40, height: 4,
+                  decoration: BoxDecoration(color: Colors.grey[300], borderRadius: BorderRadius.circular(2)),
+                ),
+              ),
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  Container(
+                    width: 36, height: 36,
+                    decoration: BoxDecoration(color: Colors.red[50], borderRadius: BorderRadius.circular(10)),
+                    child: const Icon(Icons.flag_rounded, color: Colors.red, size: 20),
+                  ),
+                  const SizedBox(width: 10),
+                  const Text('Report this Listing',
+                    style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800)),
+                ],
+              ),
+              const SizedBox(height: 4),
+              Text('Help keep the platform safe. Reports are reviewed by admins.',
+                style: TextStyle(color: Colors.grey[600], fontSize: 13)),
+              const SizedBox(height: 16),
+              const Text('Reason *',
+                style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
+              const SizedBox(height: 8),
+              ...reasons.map((r) => RadioListTile<String>(
+                value: r.$1,
+                groupValue: selectedReason,
+                onChanged: (v) => setSheetState(() => selectedReason = v),
+                title: Text(r.$2, style: const TextStyle(fontSize: 14)),
+                activeColor: AppTheme.primaryColor,
+                dense: true,
+                contentPadding: EdgeInsets.zero,
+              )),
+              const SizedBox(height: 8),
+              TextField(
+                controller: detailsController,
+                maxLines: 2,
+                maxLength: 300,
+                decoration: InputDecoration(
+                  hintText: 'Additional details (optional)',
+                  hintStyle: TextStyle(color: Colors.grey[400], fontSize: 13),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                ),
+              ),
+              const SizedBox(height: 8),
+              SizedBox(
+                width: double.infinity,
+                height: 50,
+                child: ElevatedButton(
+                  onPressed: (selectedReason == null || submitting) ? null : () async {
+                    setSheetState(() => submitting = true);
+                    try {
+                      await _machineService.reportMachine(
+                        widget.machine.id,
+                        reason: selectedReason!,
+                        details: detailsController.text.trim(),
+                      );
+                      if (ctx.mounted) Navigator.pop(ctx);
+                      if (mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: const Text('Report submitted. Thank you for helping keep the platform safe.'),
+                            backgroundColor: AppTheme.successColor,
+                            behavior: SnackBarBehavior.floating,
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          ),
+                        );
+                      }
+                    } catch (e) {
+                      setSheetState(() => submitting = false);
+                      if (ctx.mounted) {
+                        ScaffoldMessenger.of(ctx).showSnackBar(
+                          SnackBar(content: Text(e.toString().replaceFirst('Exception: ', '')),
+                            backgroundColor: AppTheme.errorColor),
+                        );
+                      }
+                    }
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.red[600],
+                    disabledBackgroundColor: Colors.grey[300],
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                  child: submitting
+                      ? const SizedBox(width: 20, height: 20,
+                          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                      : const Text('Submit Report',
+                          style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -199,6 +330,15 @@ class _MachineDetailScreenState extends State<MachineDetailScreen> {
                       minimumSize: const Size(double.infinity, 52),
                       side: const BorderSide(color: AppTheme.secondaryColor),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Center(
+                    child: TextButton.icon(
+                      onPressed: _showReportSheet,
+                      icon: const Icon(Icons.flag_outlined, size: 16, color: Colors.red),
+                      label: const Text('Report this listing',
+                        style: TextStyle(color: Colors.red, fontSize: 13, fontWeight: FontWeight.w600)),
                     ),
                   ),
                   const SizedBox(height: 100),

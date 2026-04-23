@@ -194,6 +194,7 @@ export const createOrUpdateUser = async (req: AuthRequest, res: Response) => {
       if (role === 'vendor' && existingRole !== 'vendor') {
         updateData.role = 'vendor';
         updateData.isOnline = false;
+        updateData.vendorApprovalStatus = 'pending';
       }
       await userRef.update(updateData);
       const updated = await userRef.get();
@@ -226,7 +227,7 @@ export const createOrUpdateUser = async (req: AuthRequest, res: Response) => {
           ? { verificationStatus: 'pending', verificationSubmittedAt: Timestamp.now() }
           : {}),
         isActive: true,
-        ...(userRole === 'vendor' ? { isOnline: false } : {}),
+        ...(userRole === 'vendor' ? { isOnline: false, vendorApprovalStatus: 'pending' } : {}),
         createdAt: Timestamp.now(),
         updatedAt: Timestamp.now(),
       };

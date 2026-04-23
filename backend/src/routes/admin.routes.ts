@@ -8,7 +8,10 @@ import {
   getServiceAreas, createServiceArea, updateServiceArea,
   getMachineModels, createMachineModel, updateMachineModel, deleteMachineModel,
   getAllEstimates,
+  broadcastNotification, getBroadcastHistory,
   getCoupons, createCoupon, updateCoupon, deleteCoupon,
+  getReports, resolveReport,
+  getVendorEarningsAdmin,
 } from '../controllers/admin.controller';
 
 const router = Router();
@@ -21,6 +24,7 @@ router.get('/dashboard', getDashboard);
 router.get('/users', getAllUsers);
 router.patch('/users/:uid/toggle-status', toggleUserStatus);
 router.patch('/users/:uid/verify', verifyVendor);
+router.get('/vendors/:uid/earnings', getVendorEarningsAdmin);
 
 router.get('/machines', getAllMachinesAdmin);
 router.patch('/machines/:id/approve', approveMachine);
@@ -41,6 +45,12 @@ router.put('/models/:id', updateMachineModel);
 router.delete('/models/:id', deleteMachineModel);
 
 router.get('/estimates', getAllEstimates);
+
+router.get('/notifications', getBroadcastHistory);
+router.post('/notifications/broadcast', broadcastNotification);
+
+router.get('/reports', getReports);
+router.patch('/reports/:id', resolveReport);
 
 router.get('/coupons', getCoupons);
 router.post('/coupons', createCoupon);

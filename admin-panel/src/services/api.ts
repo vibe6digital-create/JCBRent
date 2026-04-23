@@ -77,6 +77,17 @@ export const adminCancelBooking = (id: string, reason: string) =>
 
 export const getEstimates = () => request('/admin/estimates');
 
+// ─── Notifications ───────────────────────────────────────────────────────────
+
+export const getBroadcastHistory = () => request('/admin/notifications');
+
+export const broadcastNotification = (body: {
+  title: string;
+  body: string;
+  target: 'all' | 'customers' | 'vendors' | 'user';
+  userId?: string;
+}) => request('/admin/notifications/broadcast', { method: 'POST', body: JSON.stringify(body) });
+
 // ─── Categories ──────────────────────────────────────────────────────────────
 
 export const getCategories = () => request('/admin/categories');
@@ -141,3 +152,18 @@ export const updateCoupon = (id: string, body: Partial<{
 
 export const deleteCoupon = (id: string) =>
   request(`/admin/coupons/${id}`, { method: 'DELETE' });
+
+// ─── Vendor Earnings Drill-down ───────────────────────────────────────────────
+
+export const getVendorEarningsAdmin = (uid: string) =>
+  request(`/admin/vendors/${uid}/earnings`);
+
+// ─── Reports ─────────────────────────────────────────────────────────────────
+
+export const getReports = (status?: string) => {
+  const qs = status ? `?status=${status}` : '';
+  return request(`/admin/reports${qs}`);
+};
+
+export const resolveReport = (id: string, action: 'dismissed' | 'machine_rejected') =>
+  request(`/admin/reports/${id}`, { method: 'PATCH', body: JSON.stringify({ action }) });
