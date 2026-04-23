@@ -59,7 +59,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     child: Image.asset('assets/rentzoo_logo.png', fit: BoxFit.contain),
                   ),
                   const SizedBox(height: 24),
-                  const Text('Vendor Portal',
+                  const Text('Partner Portal',
                     style: TextStyle(fontSize: 16, color: AppTheme.textSecondary)),
                   const SizedBox(height: 48),
 

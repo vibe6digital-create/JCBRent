@@ -152,7 +152,7 @@ class _SplashScreenState extends State<SplashScreen>
                         color: Colors.white.withAlpha(40),
                         borderRadius: BorderRadius.circular(20),
                       ),
-                      child: const Text('VENDOR PORTAL',
+                      child: const Text('PARTNER PORTAL',
                         style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Colors.white, letterSpacing: 2)),
                     ),
                   ),
