@@ -122,28 +122,25 @@ class _SplashScreenState extends State<SplashScreen>
                     child: ScaleTransition(
                       scale: _scaleUp,
                       child: Container(
-                        width: 110, height: 110,
+                        width: 200,
                         decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(28),
+                          borderRadius: BorderRadius.circular(20),
                           boxShadow: [
                             BoxShadow(
-                              color: Colors.black.withAlpha(30),
+                              color: Colors.black.withAlpha(40),
                               blurRadius: 40,
                               offset: const Offset(0, 15),
                             ),
                           ],
                         ),
-                        child: const Icon(Icons.local_shipping_rounded, size: 56, color: AppTheme.primaryColor),
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(20),
+                          child: Image.asset('assets/rentzoo_logo.png', fit: BoxFit.contain),
+                        ),
                       ),
                     ),
                   ),
                   const SizedBox(height: 28),
-                  FadeTransition(
-                    opacity: _fadeIn,
-                    child: const Text('HeavyRent',
-                      style: TextStyle(fontSize: 40, fontWeight: FontWeight.w800, color: Colors.white, letterSpacing: -0.5)),
-                  ),
                   const SizedBox(height: 8),
                   FadeTransition(
                     opacity: _taglineFade,

@@ -1,18 +1,18 @@
 import 'package:flutter/material.dart';
 
 class AppTheme {
-  // Primary palette - matching customer app v1
-  static const Color primaryColor = Color(0xFFFF8C00);
-  static const Color primaryLight = Color(0xFFFFAD33);
-  static const Color primarySurface = Color(0xFFFFF3E0);
+  // Primary palette — Rentzoo Teal
+  static const Color primaryColor = Color(0xFF009BA5);
+  static const Color primaryLight = Color(0xFF00B8C5);
+  static const Color primarySurface = Color(0xFFE0F7FA);
 
   // Secondary - dark navy
   static const Color secondaryColor = Color(0xFF1A1A2E);
 
-  // Accent - same as primary for consistency
-  static const Color accentColor = Color(0xFFFF8C00);
-  static const Color accentDark = Color(0xFFE07B00);
-  static const Color accentLight = Color(0xFFFFE8C8);
+  // Accent — Rentzoo Yellow
+  static const Color accentColor = Color(0xFFFFB800);
+  static const Color accentDark = Color(0xFFE6A500);
+  static const Color accentLight = Color(0xFFFFF3C4);
 
   // Neutral palette
   static const Color backgroundColor = Color(0xFFF5F5F5);
@@ -30,13 +30,13 @@ class AppTheme {
 
   // Gradients
   static const LinearGradient primaryGradient = LinearGradient(
-    colors: [Color(0xFFFF8C00), Color(0xFFFFAD33)],
+    colors: [Color(0xFF009BA5), Color(0xFF00B8C5)],
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
   );
 
   static const LinearGradient accentGradient = LinearGradient(
-    colors: [Color(0xFFFF8C00), Color(0xFFFFAD33)],
+    colors: [Color(0xFFFFB800), Color(0xFFFFD000)],
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
   );

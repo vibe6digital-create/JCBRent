@@ -192,7 +192,7 @@ class _PendingApprovalScreenState extends State<PendingApprovalScreen>
   }
 
   String get _statusBody {
-    if (_status == 'verified') return 'Welcome to HeavyRent! Opening your dashboard…';
+    if (_status == 'verified') return 'Welcome to Rentzoo! Opening your dashboard…';
     if (_status == 'rejected') return 'Your documents were not accepted. Please contact support or re-register.';
     return 'Our team is reviewing your documents.\nThis usually takes 1–2 business days.\n\nWe\'ll notify you as soon as it\'s approved.';
   }

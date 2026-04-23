@@ -148,7 +148,7 @@ class _VendorProfileSetupScreenState extends State<VendorProfileSetupScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     const Text(
-                      'Enjoy HeavyRent services by accepting our Terms & Privacy Policy.',
+                      'Enjoy Rentzoo services by accepting our Terms & Privacy Policy.',
                       style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: Colors.white),
                     ),
                     const SizedBox(height: 4),

@@ -23,7 +23,10 @@ class ProfileScreen extends StatelessWidget {
                   shape: BoxShape.circle,
                   boxShadow: [AppTheme.mediumShadow],
                 ),
-                child: const Icon(Icons.local_shipping_rounded, size: 48, color: Colors.white),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(50),
+                  child: Image.asset('assets/rentzoo_logo.png', width: 100, height: 100, fit: BoxFit.cover),
+                ),
               ),
               const SizedBox(height: 18),
               const Text('Suryaprakash Equipment',
@@ -48,7 +51,7 @@ class ProfileScreen extends StatelessWidget {
               const SizedBox(height: 32),
 
               const _ProfileTile(icon: Icons.phone_rounded, label: 'Phone', value: '+91 98765 00001'),
-              const _ProfileTile(icon: Icons.email_rounded, label: 'Email', value: 'surya@heavyrent.in'),
+              const _ProfileTile(icon: Icons.email_rounded, label: 'Email', value: 'surya@rentzoo.in'),
               const _ProfileTile(icon: Icons.business_rounded, label: 'Business', value: 'Heavy Equipment Rental'),
               const _ProfileTile(icon: Icons.location_city_rounded, label: 'City', value: 'Indore'),
               const _ProfileTile(icon: Icons.map_rounded, label: 'State', value: 'Madhya Pradesh'),

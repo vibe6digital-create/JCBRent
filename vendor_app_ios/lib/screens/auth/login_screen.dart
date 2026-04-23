@@ -53,21 +53,13 @@ class _LoginScreenState extends State<LoginScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const Spacer(),
-                  // Icon
-                  Container(
-                    width: 72, height: 72,
-                    decoration: BoxDecoration(
-                      gradient: AppTheme.primaryGradient,
-                      borderRadius: BorderRadius.circular(20),
-                      boxShadow: [AppTheme.mediumShadow],
-                    ),
-                    child: const Icon(Icons.local_shipping_rounded, size: 36, color: Colors.white),
+                  // Logo
+                  SizedBox(
+                    width: 180,
+                    child: Image.asset('assets/rentzoo_logo.png', fit: BoxFit.contain),
                   ),
                   const SizedBox(height: 24),
-                  const Text('HeavyRent',
-                    style: TextStyle(fontSize: 36, fontWeight: FontWeight.w800, color: AppTheme.textPrimary, letterSpacing: -1)),
-                  const SizedBox(height: 6),
-                  const Text('Vendor / Driver Portal',
+                  const Text('Vendor Portal',
                     style: TextStyle(fontSize: 16, color: AppTheme.textSecondary)),
                   const SizedBox(height: 48),
 

@@ -1,5 +1,5 @@
 class AppConfig {
-  static const String appName = 'HeavyRent Vendor';
+  static const String appName = 'Rentzoo';
 
   // Production: Firebase Functions URL (via Hosting rewrite)
   static const String apiBaseUrl = 'https://rentzoo-a39ea.web.app/api';
