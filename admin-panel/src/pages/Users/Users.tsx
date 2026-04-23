@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Search, Filter, UserCheck, UserX, Phone, MapPin, CheckCircle, XCircle, Clock, IndianRupee } from 'lucide-react';
 import Badge from '../../components/common/Badge';
-import { getUsers, toggleUserStatus, updateVendorApproval } from '../../services/api';
+import { getUsers, toggleUserStatus, verifyVendor } from '../../services/api';
 import type { User, UserRole, VendorApprovalStatus } from '../../types';
 import toast from 'react-hot-toast';
 
@@ -32,7 +32,13 @@ export default function Users() {
     (async () => {
       try {
         const res: any = await getUsers();
-        setUsers(res.users || []);
+        const normalized = (res.users || []).map((u: any) => ({
+          ...u,
+          vendorApprovalStatus: u.vendorApprovalStatus ||
+            (u.verificationStatus === 'verified' ? 'approved' :
+             u.verificationStatus === 'rejected' ? 'rejected' : 'pending'),
+        }));
+        setUsers(normalized);
       } catch (err: any) {
         toast.error(err.message || 'Failed to load users');
       } finally {
@@ -62,7 +68,8 @@ export default function Users() {
   const handleVendorApproval = async (uid: string, status: 'approved' | 'rejected') => {
     setApprovalLoading(uid + status);
     try {
-      await updateVendorApproval(uid, status);
+      const backendStatus = status === 'approved' ? 'verified' : 'rejected';
+      await verifyVendor(uid, backendStatus);
       setUsers(prev => prev.map(u => u.uid === uid ? { ...u, vendorApprovalStatus: status } : u));
       toast.success(`Vendor ${status}`);
     } catch (err: any) {
