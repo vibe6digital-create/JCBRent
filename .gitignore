@@ -50,3 +50,6 @@ Thumbs.db
 
 # ─── PDF / binary documents ──────────────────────────────────────────────────
 *.pdf
+
+# ─── APK builds (binary, no point tracking in git) ──────────────────────────
+**/*.apk
